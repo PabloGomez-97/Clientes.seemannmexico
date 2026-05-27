@@ -1,0 +1,455 @@
+/* ===================================================================
+   PricingTabs — Enterprise SaaS Design System
+   Fonts: Inter, system-ui
+   Colors: --primary-color (#ff6200) + neutral palette
+   =================================================================== */
+
+/* ===== CONTAINER ===== */
+.pricing-tabs-container {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f9fafb;
+  min-height: 100vh;
+  padding: 0;
+}
+
+/* ===== HEADER ===== */
+.pricing-header {
+  background-color: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 24px 32px;
+  margin: 0;
+}
+
+.header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-logo {
+  height: 40px;
+  object-fit: contain;
+}
+
+.header-text h1.header-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--secondary-color);
+  letter-spacing: -0.3px;
+  line-height: 1.3;
+}
+
+.header-text p.header-subtitle {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+/* ===== TABS WRAPPER ===== */
+.tabs-wrapper {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+/* ===== TAB BAR ===== */
+.custom-tabs {
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  padding: 0 4px;
+  display: flex;
+  gap: 0;
+}
+
+/* ===== TAB BUTTONS ===== */
+.custom-tabs .nav-link {
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  color: #6b7280 !important;
+  padding: 12px 20px !important;
+  margin: 0 !important;
+  font-weight: 500 !important;
+  font-size: 14px !important;
+  transition: color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.custom-tabs .nav-link:hover {
+  color: var(--primary-color) !important;
+  background: transparent !important;
+  transform: none;
+}
+
+.custom-tabs .nav-link.active {
+  color: var(--primary-color) !important;
+  border-bottom: 2px solid var(--primary-color) !important;
+  background: transparent !important;
+  font-weight: 600 !important;
+}
+
+/* ===== TAB TITLE ===== */
+.tab-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.tab-title .tab-icon {
+  font-size: 15px;
+  line-height: 1;
+  color: inherit;
+}
+
+/* ===== TAB CONTENT ===== */
+.tab-content-panel {
+  background: #fff;
+  padding: 28px 24px;
+  border: 1px solid #e5e7eb;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+}
+
+/* ===== PRICING INNER SECTIONS ===== */
+.pricing-forms-section {
+  background: transparent;
+  padding: 0;
+  margin-bottom: 32px;
+}
+
+.pricing-routes-section {
+  background: #fff;
+  padding: 24px;
+  border-radius: 8px;
+  margin-top: 24px;
+  border: 1px solid #e5e7eb;
+}
+
+/* ===== TABLE STYLING (Enterprise) ===== */
+.pricing-routes-section .table-responsive {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pricing-routes-section table.table {
+  margin-bottom: 0;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 0.8125rem !important;
+  border-collapse: collapse;
+}
+
+.pricing-routes-section table.table thead {
+  background-color: #f9fafb;
+}
+
+.pricing-routes-section table.table thead th {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  border-top: none;
+  white-space: nowrap;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.pricing-routes-section table.table tbody tr {
+  transition: background-color 0.1s ease;
+}
+
+.pricing-routes-section table.table tbody tr:hover {
+  background-color: #f9fafb;
+}
+
+.pricing-routes-section table.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.pricing-routes-section table.table tbody td {
+  padding: 10px 12px;
+  color: #1f2937;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+  text-align: left;
+}
+
+/* Stripe alternance very subtle */
+.pricing-routes-section table.table tbody tr:nth-child(even) {
+  background-color: #fdfdfe;
+}
+
+/* Badge override for currency */
+.pricing-routes-section .badge.bg-secondary {
+  background-color: #f3f4f6 !important;
+  color: #374151 !important;
+  font-weight: 500;
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+
+/* Inline edit inputs inside table */
+.pricing-routes-section table.table td .form-control,
+.pricing-routes-section table.table td .form-select {
+  font-size: 0.8125rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+}
+
+.pricing-routes-section table.table td .form-control:focus,
+.pricing-routes-section table.table td .form-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.12);
+}
+
+/* Action buttons inside table */
+.pricing-routes-section table.table td .btn {
+  font-size: 0.75rem;
+  padding: 3px 7px;
+  border-radius: 4px;
+}
+
+/* ===== SEARCH BAR ===== */
+.pricing-routes-section .form-control[type="text"][placeholder*="Buscar"] {
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.875rem;
+  background-color: #fff;
+}
+
+.pricing-routes-section .form-control[type="text"][placeholder*="Buscar"]:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+}
+
+/* ===== ACCORDION (Forms Section) ===== */
+.pricing-forms-section .accordion-item {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.pricing-forms-section .accordion-item + .accordion-item {
+  margin-top: 8px;
+}
+
+.pricing-forms-section .accordion-button {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #1f2937;
+  background-color: #fff;
+  padding: 14px 16px;
+  box-shadow: none !important;
+}
+
+.pricing-forms-section .accordion-button:not(.collapsed) {
+  color: var(--primary-color);
+  background-color: #fff;
+  box-shadow: none !important;
+}
+
+.pricing-forms-section .accordion-button::after {
+  width: 14px;
+  height: 14px;
+  background-size: 14px;
+}
+
+.pricing-forms-section .accordion-body {
+  padding: 20px;
+  background-color: #fff;
+}
+
+/* Form labels inside accordion */
+.pricing-forms-section .form-label {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #374151;
+  margin-bottom: 4px;
+}
+
+.pricing-forms-section .form-control,
+.pricing-forms-section .form-select {
+  font-size: 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.pricing-forms-section .form-control:focus,
+.pricing-forms-section .form-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+}
+
+/* Section headers inside forms */
+.pricing-forms-section h6.text-muted {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6b7280 !important;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 16px !important;
+}
+
+/* ===== BUTTONS (Primary overrides) ===== */
+.pricing-tabs-container .btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+  font-weight: 500;
+  font-size: 0.875rem;
+  border-radius: 6px;
+  padding: 8px 20px;
+}
+
+.pricing-tabs-container .btn-primary:hover,
+.pricing-tabs-container .btn-primary:focus {
+  background-color: var(--primary-hover);
+  border-color: var(--primary-hover);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.15);
+}
+
+.pricing-tabs-container .btn-outline-primary {
+  color: var(--primary-color);
+  border-color: var(--primary-color);
+  font-weight: 500;
+  font-size: 0.875rem;
+  border-radius: 6px;
+}
+
+.pricing-tabs-container .btn-outline-primary:hover {
+  background-color: var(--primary-color);
+  color: #fff;
+}
+
+/* Pagination buttons */
+.pricing-routes-section .btn-outline-secondary {
+  font-size: 0.8125rem;
+  border-radius: 6px;
+  padding: 6px 14px;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.pricing-routes-section .btn-outline-secondary:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+  color: #1f2937;
+}
+
+/* ===== ALERTS ===== */
+.pricing-tabs-container .alert {
+  border-radius: 8px;
+  font-size: 0.875rem;
+  border: 1px solid;
+  padding: 12px 16px;
+}
+
+/* ===== PAGINATION TEXT ===== */
+.pricing-routes-section small.text-muted {
+  font-size: 0.8125rem;
+  color: #6b7280 !important;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 768px) {
+  .pricing-header {
+    padding: 20px 16px;
+  }
+
+  .header-left {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .header-logo {
+    height: 32px;
+  }
+
+  .header-text h1.header-title {
+    font-size: 17px;
+  }
+
+  .header-text p.header-subtitle {
+    font-size: 12px;
+  }
+
+  .tabs-wrapper {
+    padding: 0 16px;
+  }
+
+  .custom-tabs {
+    gap: 0;
+  }
+
+  .custom-tabs .nav-link {
+    padding: 10px 14px !important;
+  }
+
+  .tab-title {
+    font-size: 13px;
+  }
+
+  .tab-content-panel {
+    padding: 20px 16px;
+  }
+
+  .pricing-routes-section {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .pricing-header {
+    padding: 16px 12px;
+  }
+
+  .header-text h1.header-title {
+    font-size: 15px;
+  }
+
+  .tabs-wrapper {
+    padding: 0 12px;
+  }
+
+  .custom-tabs .nav-link {
+    padding: 8px 10px !important;
+  }
+
+  .tab-title {
+    font-size: 12px;
+    gap: 6px;
+  }
+
+  .tab-title .tab-icon {
+    font-size: 13px;
+  }
+
+  .tab-content-panel {
+    padding: 16px 12px;
+  }
+}

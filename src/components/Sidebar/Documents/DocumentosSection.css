@@ -1,0 +1,393 @@
+/* DocumentosSection.css - Estilo explorador de archivos */
+
+.documentos-section-folder {
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Contenedor principal del explorador */
+.folder-explorer {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Item de carpeta */
+.folder-item {
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.folder-item:last-child {
+  border-bottom: none;
+}
+
+/* Header de la carpeta (clickeable) */
+.folder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #fafafa;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  user-select: none;
+}
+
+.folder-header:hover {
+  background: #f0f0f0;
+}
+
+.folder-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+
+.folder-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.folder-name {
+  font-size: 0.9rem;
+  color: #333;
+  font-weight: 500;
+}
+
+.folder-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.folder-count {
+  font-size: 0.85rem;
+  color: #666;
+  background: #e8e8e8;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.folder-arrow {
+  font-size: 0.7rem;
+  color: #666;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.folder-arrow.open {
+  transform: rotate(90deg);
+}
+
+/* Contenido de la carpeta */
+.folder-content {
+  background: #ffffff;
+  padding: 12px 16px 16px 16px;
+  border-top: 1px solid #e8e8e8;
+}
+
+/* Área de subida */
+.upload-area {
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-top: 1rem;
+}
+
+.btn-upload-folder {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  background: #ffffff;
+  border: 1px solid #d0d0d0;
+  border-radius: 4px;
+  color: #333;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.btn-upload-folder:hover:not(:disabled) {
+  background: #f5f5f5;
+  border-color: #999;
+}
+
+.btn-upload-folder:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Lista de archivos */
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Item de archivo */
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #fafafa;
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.file-item:hover {
+  background: #f0f0f0;
+  border-color: #d0d0d0;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.file-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-name {
+  font-size: 0.85rem;
+  color: #333;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 2px;
+}
+
+.file-meta {
+  font-size: 0.75rem;
+  color: #999;
+}
+
+/* Acciones de archivo */
+.file-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.btn-file-action {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  line-height: 1;
+  opacity: 0.6;
+}
+
+.btn-file-action:hover {
+  opacity: 1;
+  background: #e0e0e0;
+}
+
+.btn-file-action.delete:hover {
+  background: #ffe0e0;
+}
+
+/* Carpeta vacía */
+.empty-folder {
+  text-align: center;
+  padding: 20px;
+  color: #999;
+  font-size: 0.85rem;
+  background: #fafafa;
+  border-radius: 4px;
+  border: 1px dashed #d0d0d0;
+}
+
+/* Alerts */
+.alert {
+  position: relative;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.alert-success {
+  color: #155724;
+  background-color: #d4edda;
+  border-color: #c3e6cb;
+}
+
+.alert-danger {
+  color: #721c24;
+  background-color: #f8d7da;
+  border-color: #f5c6cb;
+}
+
+.btn-close {
+  background: transparent;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+  margin-left: 12px;
+}
+
+.btn-close:hover {
+  opacity: 1;
+}
+
+.btn-close::before {
+  content: '×';
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+/* Loading spinner */
+.spinner-border {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-border 0.75s linear infinite;
+}
+
+.spinner-border-sm {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-width: 2px;
+}
+
+@keyframes spinner-border {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.text-primary {
+  color: #007bff;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.py-4 {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.me-2 {
+  margin-right: 0.5rem;
+}
+
+.text-muted {
+  color: #6c757d;
+}
+
+/* ============================================================
+   DRAG & DROP
+   ============================================================ */
+
+.folder-item.drag-over > .folder-header {
+  background: #e3f2fd;
+  box-shadow: inset 0 0 0 2px #2196f3;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.folder-item.drag-over > .folder-content {
+  background: #f5faff;
+}
+
+.drop-zone-inline {
+  border: 2px dashed #b0bec5;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+  color: #999;
+  font-size: 0.85rem;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+  background: #fafafa;
+}
+
+.drop-zone-inline .drop-zone-icon {
+  font-size: 1.4rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.folder-item.drag-over .drop-zone-inline {
+  border-color: #2196f3;
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .folder-header {
+    padding: 10px 12px;
+  }
+
+  .folder-name {
+    font-size: 0.85rem;
+  }
+
+  .folder-content {
+    padding: 10px 12px 12px 12px;
+  }
+
+  .file-name {
+    font-size: 0.8rem;
+  }
+
+  .file-meta {
+    font-size: 0.7rem;
+  }
+
+  .btn-upload-folder {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+}

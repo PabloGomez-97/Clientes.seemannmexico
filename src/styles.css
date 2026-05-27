@@ -1,0 +1,53 @@
+/* src/styles.css - Global CSS Variables */
+
+:root {
+  --primary-color: #ff6200;
+  --secondary-color: #1F2937;
+  --primary-light: #000000;
+  --primary-hover: #ff6200;
+  --primary-active: #ff6200;
+  --primary-rgb: 255, 98, 0;
+}
+/* var(--primary-color) <- con ese lo colocamos */
+
+/* font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; */
+
+/* ===== Route Card Toggle (Paso 1 - Quoters) ===== */
+.route-card-toggle {
+  cursor: pointer;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  border: 1.5px solid #dee2e6;
+  background-color: #ffffff;
+  transition: border-color 0.2s ease, background-color 0.2s ease,
+    box-shadow 0.2s ease;
+  user-select: none;
+}
+
+.route-card-toggle:hover {
+  border-color: rgba(255, 98, 0, 0.35);
+  background-color: rgba(255, 98, 0, 0.025);
+  box-shadow: 0 2px 10px rgba(255, 98, 0, 0.08);
+}
+
+.route-card-toggle.selected {
+  border: 2px solid #ff6200;
+  background-color: rgba(255, 98, 0, 0.04);
+  box-shadow: 0 2px 10px rgba(255, 98, 0, 0.12);
+}
+
+/* ===== Dark Mode (Dark Reader style) ===== */
+html.dark-mode {
+  filter: invert(90%) hue-rotate(180deg);
+  background: #000 !important;
+}
+
+/* Counterfix: re-invert media so images/videos keep natural colors */
+html.dark-mode img,
+html.dark-mode video,
+html.dark-mode canvas,
+html.dark-mode iframe[src*="map"],
+html.dark-mode [class*="mapbox"],
+html.dark-mode [class*="leaflet"] {
+  filter: invert(100%) hue-rotate(180deg);
+}

@@ -1,0 +1,278 @@
+/* src/components/Footer/Footer.css */
+
+/*
+  El footer rompe el padding del contenedor padre (p-4 = 24px)
+  usando negative margins para ocupar el ancho completo de la pantalla.
+*/
+.sg-footer {
+  flex-shrink: 0;
+  margin-top: 3rem;
+  margin-left: -1.5rem;   /* compensar padding de .user-layout-main */
+  margin-right: -1.5rem;
+  margin-bottom: -1.5rem;
+  background-color: #dce4ed;
+  border-top: 3px solid #ff6200;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  color: #374151;
+}
+
+/* ===== Área interior del top (contenido centrado con padding) ===== */
+.sg-footer__top {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 2.5rem;
+  align-items: start;
+  padding: 2.75rem 2.5rem 2rem;
+}
+
+/* ----- Brand block ----- */
+.sg-footer__brand {
+  max-width: 340px;
+}
+
+.sg-footer__brand-row {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-bottom: 0.875rem;
+}
+
+.sg-footer__logo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.sg-footer__brand-name {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #111827;
+}
+
+.sg-footer__tagline {
+  margin: 0 0 1.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: #4b5563;
+}
+
+.sg-footer__socials {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sg-footer__social-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: #374151;
+  background-color: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  transition: color 0.18s ease, background-color 0.18s ease,
+    border-color 0.18s ease, transform 0.18s ease;
+  text-decoration: none;
+}
+
+.sg-footer__social-link:hover,
+.sg-footer__social-link:focus-visible {
+  color: #ff6200;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 98, 0, 0.35);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+/* ----- Link columns ----- */
+.sg-footer__cols {
+  display: contents;
+}
+
+.sg-footer__col-title {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #111827;
+  margin: 0 0 0.875rem;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+}
+
+.sg-footer__col-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sg-footer__link {
+  display: inline-block;
+  font-size: 0.8125rem;
+  color: #4b5563;
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+
+.sg-footer__link:hover,
+.sg-footer__link:focus-visible {
+  color: #ff6200;
+  outline: none;
+}
+
+/* ===== Divider ===== */
+.sg-footer__divider {
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  margin: 0;
+}
+
+/* ===== Bottom bar (franja más oscura, igual que Hapag-Lloyd) ===== */
+.sg-footer__bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 2.5rem;
+  background-color: #c9d4df;
+}
+
+.sg-footer__copy {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+.sg-footer__legal {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.sg-footer__legal-link {
+  font-size: 0.75rem;
+  color: #4b5563;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(75, 85, 99, 0.4);
+  transition: color 0.18s ease, text-decoration-color 0.18s ease;
+}
+
+.sg-footer__legal-link:hover,
+.sg-footer__legal-link:focus-visible {
+  color: #ff6200;
+  text-decoration-color: #ff6200;
+  outline: none;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+/* Tablet: brand full-width arriba, 3 columnas debajo */
+@media (max-width: 1023.98px) {
+  .sg-footer__top {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+    padding: 2.25rem 2rem 1.75rem;
+  }
+
+  .sg-footer__brand {
+    max-width: 480px;
+  }
+
+  .sg-footer__cols {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  .sg-footer__bottom {
+    padding: 1rem 2rem;
+  }
+}
+
+/* Móvil */
+@media (max-width: 767.98px) {
+  .sg-footer {
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: -18px;
+  }
+
+  .sg-footer__top {
+    gap: 1.75rem;
+    padding: 1.75rem 1.25rem 1.5rem;
+  }
+
+  .sg-footer__brand {
+    text-align: center;
+    max-width: none;
+  }
+
+  .sg-footer__brand-row {
+    justify-content: center;
+  }
+
+  .sg-footer__socials {
+    justify-content: center;
+  }
+
+  .sg-footer__cols {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .sg-footer__col {
+    text-align: left;
+  }
+
+  .sg-footer__bottom {
+    justify-content: center;
+    text-align: center;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+  }
+
+  .sg-footer__legal {
+    justify-content: center;
+    gap: 1rem;
+  }
+}
+
+/* ===== Layout: sticky footer (UserLayout, AdminLayout, ProveedorLayout) ===== */
+.user-layout-main {
+  padding: 24px;
+}
+
+@media (max-width: 768px) {
+  .user-layout-main {
+    padding: 12px 0 18px;
+  }
+}
+
+.layout-main--sticky-footer {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Crece solo el espacio vacío (páginas cortas); no comprime el contenido largo */
+.layout-main__content {
+  flex: 1 0 auto;
+}

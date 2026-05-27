@@ -1,0 +1,299 @@
+/* ==========================================================================
+   Itinerary Finder
+   Layout: segmented control (tipo) + inline form fields (origen / destino /
+   fecha / botón). Estilo alineado con la identidad Hapag-style del Home.
+   ========================================================================== */
+
+.hal-itin {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ---------- Top bar: segmented + meta ---------- */
+
+.hal-itin-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hal-itin-segmented {
+  display: inline-flex;
+  align-items: stretch;
+  background: #ffffff;
+  border: 1px solid #e2e5ea;
+  border-radius: 999px;
+  padding: 4px;
+  gap: 2px;
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: none;
+}
+
+.hal-itin-segmented::-webkit-scrollbar {
+  display: none;
+}
+
+.hal-itin-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: #4b5563;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.15s ease;
+}
+
+.hal-itin-segment:hover:not(.is-active) {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+.hal-itin-segment:focus-visible {
+  outline: 2px solid var(--primary-hover);
+  outline-offset: 2px;
+}
+
+.hal-itin-segment.is-active {
+  background: var(--primary-hover);
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(255, 98, 0, 0.25);
+}
+
+.hal-itin-segment-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- Meta line (routes count + reset) ---------- */
+
+.hal-itin-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+
+.hal-itin-routes-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hal-itin-routes-count::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #10b981;
+}
+
+.hal-itin-reset {
+  background: none;
+  border: none;
+  color: var(--primary-hover);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.15s ease;
+}
+
+.hal-itin-reset:hover {
+  background-color: rgba(255, 98, 0, 0.08);
+}
+
+/* ---------- Form row (4 fields) ---------- */
+
+.hal-itin-form {
+  display: grid;
+  grid-template-columns: 1.2fr 1.2fr 0.8fr auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.hal-itin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.hal-itin-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.hal-itin-date {
+  width: 100%;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid #e2e5ea;
+  border-radius: 8px;
+  background-color: #ffffff;
+  font-size: 0.9375rem;
+  color: #111827;
+  font-family: inherit;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.hal-itin-date:hover:not(:disabled) {
+  border-color: #cbd1d9;
+}
+
+.hal-itin-date:focus {
+  outline: none;
+  border-color: var(--primary-hover);
+  box-shadow: 0 0 0 3px rgba(255, 98, 0, 0.12);
+}
+
+.hal-itin-date:disabled {
+  background-color: #f9fafb;
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* ---------- Search button ---------- */
+
+.hal-itin-search {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 24px;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--primary-hover);
+  color: #ffffff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+  white-space: nowrap;
+}
+
+.hal-itin-search:hover:not(:disabled) {
+  background-color: #e55700;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(255, 98, 0, 0.3);
+}
+
+.hal-itin-search:focus-visible {
+  outline: 2px solid #111827;
+  outline-offset: 2px;
+}
+
+.hal-itin-search:disabled {
+  background-color: #d1d5db;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.hal-itin-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: hal-itin-spin 0.7s linear infinite;
+}
+
+@keyframes hal-itin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Hint / status line ---------- */
+
+.hal-itin-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 18px;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin-top: -4px;
+}
+
+.hal-itin-hint.is-ready {
+  color: #059669;
+}
+
+.hal-itin-hint.is-error {
+  color: #dc2626;
+}
+
+/* ---------- Animation on form appear ---------- */
+
+.hal-itin-form,
+.hal-itin-meta {
+  animation: hal-itin-fade-in 0.25s ease-out;
+}
+
+@keyframes hal-itin-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 900px) {
+  .hal-itin-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .hal-itin-search {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .hal-itin-form {
+    grid-template-columns: 1fr;
+  }
+
+  .hal-itin-segment {
+    padding: 8px 14px;
+    font-size: 0.8125rem;
+  }
+
+  .hal-itin-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

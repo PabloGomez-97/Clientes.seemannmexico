@@ -1,0 +1,16 @@
+services:
+  whatsapp-worker:
+    build:
+      context: ..
+      dockerfile: whatsapp/Dockerfile
+    environment:
+      MONGODB_URI: ${MONGODB_URI}
+      WHATSAPP_MONGODB_DB: ${WHATSAPP_MONGODB_DB}
+      BAILEYS_SESSION_ID: ${BAILEYS_SESSION_ID:-seemann-portal-prod}
+      BAILEYS_AUTH_COLLECTION: ${BAILEYS_AUTH_COLLECTION:-baileys_auth}
+      PORTAL_BASE_URL: ${PORTAL_BASE_URL:-https://portalclientes.seemanngroup.com}
+      WHATSAPP_POLL_INTERVAL_MS: ${WHATSAPP_POLL_INTERVAL_MS:-4000}
+      WHATSAPP_RATE_LIMIT_PER_MIN: ${WHATSAPP_RATE_LIMIT_PER_MIN:-20}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    restart: unless-stopped
+

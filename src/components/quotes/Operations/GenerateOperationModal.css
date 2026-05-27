@@ -1,0 +1,360 @@
+/* ==============================================================
+   GenerateOperationModal — estilo minimalista (AWS/GCP/Azure-like)
+   ============================================================== */
+
+.go-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 17, 22, 0.55);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: go-fade-in 0.18s ease;
+}
+
+@keyframes go-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.go-modal {
+  background: #ffffff;
+  border-radius: 6px;
+  width: 100%;
+  max-width: 560px;
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2328;
+  overflow: hidden;
+  animation: go-slide-in 0.22s ease;
+}
+
+.go-modal--lg {
+  max-width: 640px;
+}
+
+@keyframes go-slide-in {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0);   opacity: 1; }
+}
+
+/* Header */
+.go-modal__header {
+  padding: 20px 24px 14px;
+  border-bottom: 1px solid #eaecef;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.go-modal__title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+  color: #1f2328;
+}
+
+.go-modal__sub {
+  font-size: 12px;
+  color: #6e7781;
+  margin: 4px 0 0;
+}
+
+.go-modal__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  color: #6e7781;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.go-modal__close:hover {
+  background: #f6f8fa;
+  color: #1f2328;
+}
+
+/* Body */
+.go-modal__body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.go-modal__body p {
+  font-size: 13px;
+  color: #444c56;
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+
+/* Footer */
+.go-modal__footer {
+  padding: 14px 24px;
+  border-top: 1px solid #eaecef;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: #fafbfc;
+}
+
+/* Buttons */
+.go-btn {
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  line-height: 1.2;
+}
+
+.go-btn--primary {
+  background: #ff6200;
+  color: #ffffff;
+  border-color: #ff6200;
+}
+
+.go-btn--primary:hover:not(:disabled) {
+  background: #e85800;
+  border-color: #e85800;
+}
+
+.go-btn--secondary {
+  background: #ffffff;
+  color: #24292f;
+  border-color: #d0d7de;
+}
+
+.go-btn--secondary:hover:not(:disabled) {
+  background: #f6f8fa;
+  border-color: #afb8c1;
+}
+
+.go-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Form */
+.go-form__row {
+  margin-bottom: 14px;
+}
+
+.go-form__row--inline {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.go-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #57606a;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.go-label__required {
+  color: #cf222e;
+  margin-left: 2px;
+}
+
+.go-input,
+.go-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: inherit;
+  color: #1f2328;
+  background: #ffffff;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.go-input:focus,
+.go-select:focus {
+  outline: none;
+  border-color: #ff6200;
+  box-shadow: 0 0 0 3px rgba(255, 98, 0, 0.15);
+}
+
+.go-input--error {
+  border-color: #cf222e;
+}
+
+.go-form__hint {
+  font-size: 11px;
+  color: #6e7781;
+  margin: 4px 0 0;
+}
+
+.go-form__error {
+  font-size: 11px;
+  color: #cf222e;
+  margin: 4px 0 0;
+}
+
+/* Section heading inside modal */
+.go-section__title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #57606a;
+  margin: 18px 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #eaecef;
+}
+
+.go-section__title:first-child {
+  margin-top: 0;
+}
+
+/* Document uploader */
+.go-doc {
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: #ffffff;
+}
+
+.go-doc__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.go-doc__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2328;
+}
+
+.go-doc__required {
+  font-size: 10px;
+  font-weight: 600;
+  color: #cf222e;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.go-doc__optional {
+  font-size: 10px;
+  font-weight: 600;
+  color: #656d76;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.go-doc__upload {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.go-doc__file-label {
+  display: inline-block;
+  font-size: 12px;
+  padding: 6px 12px;
+  background: #ffffff;
+  color: #24292f;
+  border: 1px solid #d0d7de;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.go-doc__file-label:hover {
+  background: #f6f8fa;
+}
+
+.go-doc__file-input {
+  display: none;
+}
+
+.go-doc__file-name {
+  font-size: 12px;
+  color: #57606a;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.go-doc__file-name--ok {
+  color: #1a7f37;
+  font-weight: 500;
+}
+
+.go-doc__remove {
+  background: none;
+  border: none;
+  color: #cf222e;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px;
+}
+
+/* Banner / alerts inside modal */
+.go-alert {
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  margin-bottom: 14px;
+  border: 1px solid transparent;
+  line-height: 1.5;
+}
+
+.go-alert--error {
+  background: #fff1f1;
+  border-color: #ffcecb;
+  color: #82071e;
+}
+
+.go-alert--info {
+  background: #ddf4ff;
+  border-color: #b6e3ff;
+  color: #0550ae;
+}
+
+.go-alert--success {
+  background: #dafbe1;
+  border-color: #aceebb;
+  color: #1a7f37;
+}
+
+/* Spinner */
+.go-spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: go-spin 0.7s linear infinite;
+  margin-right: 8px;
+  vertical-align: -2px;
+}
+
+@keyframes go-spin {
+  to { transform: rotate(360deg); }
+}

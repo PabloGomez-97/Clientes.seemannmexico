@@ -1,0 +1,636 @@
+﻿/* ====================================================
+   ReporteriaOperacional — Minimalist Dashboard
+   Inspired by AWS/Azure console design
+   Prefix: rop-
+   ==================================================== */
+
+.rop-container {
+  font-family: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #111827;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.rop-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.rop-header__title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #111827;
+  margin: 0;
+  line-height: 1.15;
+}
+.rop-header__subtitle {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  margin: 4px 0 0;
+}
+.rop-header__actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+/* ── Buttons ── */
+.rop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.rop-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+}
+.rop-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rop-btn--primary {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+.rop-btn--primary:hover {
+  background: #1f2937;
+}
+.rop-btn svg {
+  flex-shrink: 0;
+}
+
+/* ── Filters bar ── */
+.rop-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.rop-filters__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.rop-filters__input {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 0.8125rem;
+  font-family: inherit;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  outline: none;
+  color: #111827;
+  background: #fff;
+  transition: border-color 0.15s;
+}
+.rop-filters__input:focus {
+  border-color: #6b7280;
+}
+
+/* ── KPI cards grid ── */
+.rop-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 24px;
+  background: var(--background-primary, #fff);
+  border: 0.5px solid var(--border-tertiary, #e5e7eb);
+  border-radius: var(--border-radius-lg, 12px);
+  overflow: hidden;
+}
+
+/* ── KPI card ── */
+.rop-kpi {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  border-right: 0.5px solid var(--border-tertiary, #e5e7eb);
+  border-bottom: 0.5px solid var(--border-tertiary, #e5e7eb);
+  cursor: pointer;
+}
+
+/* Last column in each row: no right border */
+.rop-kpi:nth-child(4n) {
+  border-right: none;
+}
+
+/* Last row (items 5-8): no bottom border */
+.rop-kpi:nth-child(n+5) {
+  border-bottom: none;
+}
+.rop-kpi__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.rop-kpi__value {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary, #111827);
+  line-height: 1.1;
+}
+.rop-kpi__sub {
+  font-size: 11px;
+  color: var(--text-tertiary, #9ca3af);
+  margin-top: 4px;
+}
+.rop-kpi__change {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 6px;
+}
+.rop-kpi__change--up {
+  color: #059669;
+}
+.rop-kpi__change--down {
+  color: #dc2626;
+}
+
+/* ── Tabs ── */
+.rop-tabs {
+  margin-bottom: 24px;
+}
+.rop-tabs__nav {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+.rop-tabs__btn {
+  padding: 10px 20px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  font-family: inherit;
+  color: #6b7280;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+.rop-tabs__btn:hover {
+  color: #111827;
+}
+.rop-tabs__btn--active {
+  color: #111827;
+  border-bottom-color: #111827;
+  font-weight: 600;
+}
+.rop-tabs__panel {
+  padding: 24px 0;
+}
+
+/* ── Chart panels ── */
+.rop-panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.rop-panel__title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0 0 16px;
+}
+.rop-panel__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* ── Breakdown bar (inside KPIs area) ── */
+.rop-breakdown {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 12px;
+  background: #f3f4f6;
+}
+.rop-breakdown__seg {
+  transition: width 0.3s;
+}
+
+/* ── Legend ── */
+.rop-legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+.rop-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+.rop-legend__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Performance cards ── */
+.rop-perf-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.rop-perf-card {
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 20px;
+}
+.rop-perf-card__mode {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rop-perf-card__mode-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.rop-perf-card__stats {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rop-stat__label {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.rop-stat__value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  margin-top: 2px;
+}
+
+/* ── Year comparison ── */
+.rop-year-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  text-align: center;
+}
+.rop-year-cell__label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-bottom: 6px;
+}
+.rop-year-cell__value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+.rop-year-cell__value--accent {
+  color: var(--primary-color, #ff6200);
+}
+.rop-year-cell__value--up {
+  color: #059669;
+}
+.rop-year-cell__value--down {
+  color: #dc2626;
+}
+
+/* ── Rank list (top destinations, shippers) ── */
+.rop-rank-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.rop-rank-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+.rop-rank-item:last-child {
+  border-bottom: none;
+}
+.rop-rank-item__left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.rop-rank-item__pos {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #9ca3af;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.rop-rank-item__name {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #374151;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rop-rank-item__count {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: #111827;
+  flex-shrink: 0;
+}
+
+/* ── Recent table ── */
+.rop-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+.rop-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.6875rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+  white-space: nowrap;
+}
+.rop-table td {
+  padding: 10px 12px;
+  color: #374151;
+  border-bottom: 1px solid #f3f4f6;
+  white-space: nowrap;
+}
+.rop-table tr:last-child td {
+  border-bottom: none;
+}
+.rop-table__number {
+  font-weight: 600;
+  color: #111827;
+}
+.rop-table__badge {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: #f3f4f6;
+  color: #374151;
+}
+.rop-table__badge--air {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.rop-table__badge--sea {
+  background: #ecfdf5;
+  color: #047857;
+}
+.rop-table__badge--ground {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* ── Modal ── */
+.rop-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 24px;
+  animation: rop-fadeIn 0.15s ease-out;
+}
+.rop-modal {
+  background: #fff;
+  border-radius: 8px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+.rop-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.rop-modal__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+.rop-modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 1.25rem;
+  transition: background 0.15s;
+}
+.rop-modal__close:hover {
+  background: #f3f4f6;
+}
+.rop-modal__body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* ── Loading ── */
+.rop-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+}
+.rop-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #111827;
+  border-radius: 50%;
+  animation: rop-spin 0.6s linear infinite;
+  margin-bottom: 12px;
+}
+@keyframes rop-spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes rop-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.rop-loading__text {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+/* ── Error ── */
+.rop-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  margin-bottom: 16px;
+}
+
+/* ── Empty state ── */
+.rop-empty {
+  text-align: center;
+  padding: 60px 24px;
+}
+.rop-empty__title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 4px;
+}
+.rop-empty__subtitle {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+/* ── Load more footer ── */
+.rop-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  margin-top: 8px;
+}
+.rop-footer__count {
+  font-size: 0.8125rem;
+  color: #6b7280;
+}
+.rop-footer__count strong {
+  color: #111827;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .rop-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* In 2-col layout: items 2,4,6,8 have no right border */
+  .rop-kpi:nth-child(4n) {
+    border-right: 0.5px solid var(--border-tertiary, #e5e7eb);
+  }
+  .rop-kpi:nth-child(2n) {
+    border-right: none;
+  }
+  /* Last 2 items (7th and 8th) have no bottom border */
+  .rop-kpi:nth-child(n+5) {
+    border-bottom: 0.5px solid var(--border-tertiary, #e5e7eb);
+  }
+  .rop-kpi:nth-child(n+7) {
+    border-bottom: none;
+  }
+  .rop-perf-grid {
+    grid-template-columns: 1fr;
+  }
+  .rop-panel__row {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 640px) {
+  .rop-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .rop-kpi {
+    border-right: none;
+    border-bottom: 0.5px solid var(--border-tertiary, #e5e7eb);
+  }
+  .rop-kpi:last-child {
+    border-bottom: none;
+  }
+  .rop-kpi:nth-child(4n),
+  .rop-kpi:nth-child(2n) {
+    border-right: none;
+  }
+  .rop-header {
+    flex-direction: column;
+  }
+  .rop-filters {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .rop-tabs__btn {
+    padding: 8px 14px;
+    font-size: 0.75rem;
+  }
+  .rop-year-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
