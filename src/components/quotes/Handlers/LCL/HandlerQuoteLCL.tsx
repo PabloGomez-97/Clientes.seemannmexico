@@ -34,11 +34,7 @@ export interface PieceData {
   wmChargeable: number; // W/M individual (mayor entre toneladas y volumen)
 }
 
-export interface OutletContext {
-  accessToken: string;
-  refreshAccessToken: () => Promise<string>;
-  onLogout: () => void;
-}
+// Sin Linbis: no usamos OutletContext en cotizaciones México
 
 export interface RutaLCL {
   id: string;

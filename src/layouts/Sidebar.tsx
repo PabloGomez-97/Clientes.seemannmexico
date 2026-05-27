@@ -84,26 +84,27 @@ function Sidebar({
       ],
     },
     {
-      items: [
-        {
-          name: t("home.sidebar.operations"),
-          icon: "fa fa-folder-open",
-          subItems: [
-            {
-              path: "/air-shipments",
-              name: t("home.sidebar.airOperations"),
-            },
-            {
-              path: "/ocean-shipments",
-              name: t("home.sidebar.oceanOperations"),
-            },
-            {
-              path: "/ground-shipments",
-              name: t("home.sidebar.groundOperations"),
-            },
-          ],
-        },
-      ],
+      // items: [
+      //   {
+      //     name: t("home.sidebar.operations"),
+      //     icon: "fa fa-folder-open",
+      //     subItems: [
+      //       {
+      //         path: "/air-shipments",
+      //         name: t("home.sidebar.airOperations"),
+      //       },
+      //       {
+      //         path: "/ocean-shipments",
+      //         name: t("home.sidebar.oceanOperations"),
+      //       },
+      //       {
+      //         path: "/ground-shipments",
+      //         name: t("home.sidebar.groundOperations"),
+      //       },
+      //     ],
+      //   },
+      // ],
+      items: [],
     },
     {
       items: [
@@ -115,44 +116,47 @@ function Sidebar({
       ],
     },
     {
-      items: [
-        {
-          name: t("home.sidebar.track"),
-          icon: "fa fa-route",
-          subItems: [
-            {
-              path: "/new-tracking",
-              name: t("home.sidebar.trackNewShipment"),
-            },
-            {
-              path: "/new-ocean-tracking",
-              name: t("home.sidebar.trackNewOceanShipment"),
-            },
-            { path: "/trackings", name: t("home.sidebar.myShipments") },
-          ],
-        },
-      ],
+      // items: [
+      //   {
+      //     name: t("home.sidebar.track"),
+      //     icon: "fa fa-route",
+      //     subItems: [
+      //       {
+      //         path: "/new-tracking",
+      //         name: t("home.sidebar.trackNewShipment"),
+      //       },
+      //       {
+      //         path: "/new-ocean-tracking",
+      //         name: t("home.sidebar.trackNewOceanShipment"),
+      //       },
+      //       { path: "/trackings", name: t("home.sidebar.myShipments") },
+      //     ],
+      //   },
+      // ],
+      items: [],
     },
     {
-      items: [
-        {
-          name: t("home.sidebar.reporting"),
-          icon: "fa fa-chart-bar",
-          subItems: [
-            { path: "/financiera", name: t("home.sidebar.financial") },
-            { path: "/operacional", name: t("home.sidebar.operational") },
-          ],
-        },
-      ],
+      // items: [
+      //   {
+      //     name: t("home.sidebar.reporting"),
+      //     icon: "fa fa-chart-bar",
+      //     subItems: [
+      //       { path: "/financiera", name: t("home.sidebar.financial") },
+      //       { path: "/operacional", name: t("home.sidebar.operational") },
+      //     ],
+      //   },
+      // ],
+      items: [],
     },
     {
-      items: [
-        {
-          path: "/novedades",
-          name: t("home.sidebar.novedades"),
-          icon: "fa fa-newspaper",
-        },
-      ],
+      // items: [
+      //   {
+      //     path: "/novedades",
+      //     name: t("home.sidebar.novedades"),
+      //     icon: "fa fa-newspaper",
+      //   },
+      // ],
+      items: [],
     },
   ];
 
@@ -236,9 +240,10 @@ function Sidebar({
             padding: isCollapsed && !isMobile ? "0 12px" : "0 20px",
             display: "flex",
             alignItems: "center",
-            justifyContent: isCollapsed && !isMobile ? "center" : "flex-start",
+            justifyContent: "center",
             borderBottom: `1px solid ${colors.border}`,
             flexShrink: 0,
+            overflow: "hidden",
           }}
         >
           {isCollapsed && !isMobile ? (
@@ -260,9 +265,14 @@ function Sidebar({
               alt="Seemann Group"
               className="sidebar-logo"
               style={{
-                width: isMobile ? "160px" : "180px",
-                height: "auto",
+                width: "auto",
+                height: isMobile ? "56px" : "62px",
+                maxHeight: isMobile ? "56px" : "62px",
+                maxWidth: "100%",
                 objectFit: "contain",
+                display: "block",
+                transform: "scale(1)",
+                transformOrigin: "center",
               }}
             />
           )}
@@ -382,8 +392,8 @@ function Sidebar({
                   const isItemActive = item.path
                     ? isActive(item.path)
                     : item.subItems?.some((subItem) =>
-                        isActive(subItem.path),
-                      ) || false;
+                      isActive(subItem.path),
+                    ) || false;
                   const isHovered =
                     hoveredItem === `${section.title}-${item.name}`;
 
@@ -688,7 +698,12 @@ function Sidebar({
             }
 
             .sidebar-logo {
-              width: min(180px, 55vw) !important;
+              height: 56px !important;
+              max-height: 56px !important;
+              width: auto !important;
+              max-width: min(180px, 55vw) !important;
+              transform: scale(1) !important;
+              transform-origin: center !important;
             }
 
             .sidebar-nav {

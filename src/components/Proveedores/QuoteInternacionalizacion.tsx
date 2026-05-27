@@ -6,13 +6,11 @@ import { useState, useMemo } from "react";
 import ReactDOM from "react-dom/client";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../auth/AuthContext";
-import { useLinbisToken } from "../../hooks/useLinbisToken";
 import {
   useAgenciaAduanas,
   calculateAduanaCharges,
 } from "../../hooks/useAgenciaAduanas";
 import type { SupportedCurrency } from "../../types/agenciaAduana";
-import { linbisFetch } from "../../services/linbisFetch";
 import {
   generatePDF,
   generatePDFBase64,
@@ -38,11 +36,7 @@ const fmt = (n: number) =>
 export default function QuoteInternacionalizacion() {
   const { t } = useTranslation();
   const { user, token } = useAuth();
-  const {
-    accessToken,
-    refreshAccessToken,
-    loading: tokenLoading,
-  } = useLinbisToken();
+  const tokenLoading = false;
   const { config: aduanaConfig, loading: aduanaConfigLoading } =
     useAgenciaAduanas();
 
@@ -182,38 +176,11 @@ export default function QuoteInternacionalizacion() {
   };
 
   // ── Generate PDF ──
-  const generateQuotePDF = async (previousMaxId: number) => {
+  const generateQuotePDF = async (quoteNumber: string) => {
     if (!aduanaResult) return;
 
-    // 1. Get quote number from Linbis
-    let quoteNumber = "";
-    try {
-      await new Promise((r) => setTimeout(r, 2000));
-      const linbisRes = await linbisFetch(
-        `https://api.linbis.com/Quotes?ConsigneeName=${encodeURIComponent(effectiveUsername)}`,
-        { headers: { Accept: "application/json" } },
-        accessToken,
-        refreshAccessToken,
-      );
-      if (linbisRes.ok) {
-        const linbisData = await linbisRes.json();
-        if (Array.isArray(linbisData) && linbisData.length > 0) {
-          const newestQuote = linbisData.reduce(
-            (max: any, q: any) =>
-              (Number(q.id) || 0) > (Number(max.id) || 0) ? q : max,
-            linbisData[0],
-          );
-          if (Number(newestQuote.id) > (previousMaxId || 0)) {
-            quoteNumber = newestQuote.number;
-            console.log(
-              `[QuoteINT] Nueva cotización confirmada: ${quoteNumber}`,
-            );
-          }
-        }
-      }
-    } catch (e) {
-      console.warn("[QuoteINT] Error getting quoteNumber:", e);
-    }
+    const safeQuoteNumber = String(quoteNumber || "").trim();
+    if (!safeQuoteNumber) return;
 
     // 2. Build charge breakdown for PDF
     const pdfCharges = [
@@ -285,39 +252,65 @@ export default function QuoteInternacionalizacion() {
         /[^a-zA-Z0-9]/g,
         "_",
       );
-      const filename = quoteNumber
-        ? `${quoteNumber}_INT_${customerClean}.pdf`
+      const filename = safeQuoteNumber
+        ? `${safeQuoteNumber}_INT_${customerClean}.pdf`
         : `Cotizacion_INT_${customerClean}_${formatDateForFilename(new Date())}.pdf`;
 
       // Generate base64
       const pdfBase64 = await generatePDFBase64(pdfElement);
 
-      // Upload to MongoDB
-      if (pdfBase64 && quoteNumber) {
+      // Guardar cotización México (JSON + PDF)
+      if (pdfBase64 && safeQuoteNumber) {
+        const quoteJson = {
+          number: safeQuoteNumber,
+          createdAt: new Date().toISOString(),
+          validUntil: new Date(
+            Date.now() + 30 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+          origin: "N/A",
+          destination: "N/A",
+          modeOfTransportation: "terrestre",
+          transitDays: 999,
+          customerInput: {
+            valorProducto: valorProductoNum,
+            costoTransporte: costoTransporteNum,
+            seguro: seguroParaCIF,
+            currency,
+          },
+          financial: {
+            currency: "USD",
+            amount: Number(aduanaResult.total.toFixed(2)),
+            display: `${currency} ${fmt(aduanaResult.total)}`,
+          },
+          breakdown: {
+            charges: pdfCharges,
+            totalCharges: Number(aduanaResult.total.toFixed(2)),
+          },
+        };
+
         try {
-          const uploadRes = await fetch("/api/quote-pdf/upload", {
+          const saveRes = await fetch("/api/quotes/save", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
+              "x-owner-username": effectiveUsername,
             },
             body: JSON.stringify({
-              quoteNumber,
-              nombreArchivo: filename,
-              contenidoBase64: pdfBase64,
-              tipoServicio: "INTERNACIONALIZACION",
-              origen: "",
-              destino: "",
+              ownerUsername: effectiveUsername,
+              number: safeQuoteNumber,
+              quoteJson,
+              pdfBase64,
             }),
           });
-          const uploadData = await uploadRes.json();
-          console.log(
-            "[QuoteINT] PDF saved to MongoDB:",
-            uploadRes.status,
-            uploadData,
-          );
-        } catch (uploadErr) {
-          console.error("Error uploading PDF to MongoDB:", uploadErr);
+          if (!saveRes.ok) {
+            console.error(
+              "[QuoteINT] Error guardando cotización:",
+              await saveRes.text(),
+            );
+          }
+        } catch (e) {
+          console.error("[QuoteINT] Error guardando cotización:", e);
         }
       }
 
@@ -330,7 +323,7 @@ export default function QuoteInternacionalizacion() {
     root.unmount();
     document.body.removeChild(tempDiv);
 
-    return quoteNumber;
+    return safeQuoteNumber;
   };
 
   // ── Submit handler ──
@@ -347,73 +340,33 @@ export default function QuoteInternacionalizacion() {
       setError(t("QuoteINT.errorCostoTransporte"));
       return;
     }
-    if (tokenLoading) {
-      setError(t("QuoteINT.errorTokenLoading"));
-      return;
-    }
+    if (tokenLoading) return;
 
     setLoading(true);
 
     try {
-      // Step 1: Get previous max ID
-      let previousMaxId = 0;
-      try {
-        const preRes = await linbisFetch(
-          `https://api.linbis.com/Quotes?ConsigneeName=${encodeURIComponent(effectiveUsername)}`,
-          { headers: { Accept: "application/json" } },
-          accessToken,
-          refreshAccessToken,
-        );
-        if (preRes.ok) {
-          const preData = await preRes.json();
-          if (Array.isArray(preData)) {
-            previousMaxId = Math.max(
-              0,
-              ...preData.map((q: any) => Number(q.id) || 0),
-            );
-          }
-          console.log("[QuoteINT] ID máximo ANTES:", previousMaxId);
-        }
-      } catch (e) {
-        console.warn("[QuoteINT] No se pudo obtener cotizaciones previas:", e);
-      }
-
-      // Step 2: Build payload & submit to Linbis
-      const payload = getPayload();
-      if (!payload) {
-        setError(t("QuoteINT.errorPayload"));
-        setLoading(false);
-        return;
-      }
-
-      const res = await linbisFetch(
-        "https://api.linbis.com/Quotes/create",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+      const nextRes = await fetch("/api/quotes/next-number", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "x-owner-username": effectiveUsername,
         },
-        accessToken,
-        refreshAccessToken,
-      );
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
+        body: JSON.stringify({ ownerUsername: effectiveUsername }),
+      });
+      if (!nextRes.ok) {
+        const txt = await nextRes.text();
+        throw new Error(`No se pudo generar folio: ${txt}`);
       }
+      const nextData = await nextRes.json();
+      const quoteNumber = String(nextData?.number || "").trim();
+      if (!quoteNumber) throw new Error("No se recibió folio de cotización");
 
-      const data = await res.json();
-      console.log(
-        "[QuoteINT] Respuesta CREATE de Linbis:",
-        JSON.stringify(data),
-      );
-
-      // Step 3: Generate & download PDF
-      const quoteNumber = await generateQuotePDF(previousMaxId);
+      const savedNumber = await generateQuotePDF(quoteNumber);
 
       setSuccess(
-        quoteNumber
-          ? t("QuoteINT.successConNumero", { numero: quoteNumber })
+        savedNumber
+          ? t("QuoteINT.successConNumero", { numero: savedNumber })
           : t("QuoteINT.successSinNumero"),
       );
     } catch (err: any) {

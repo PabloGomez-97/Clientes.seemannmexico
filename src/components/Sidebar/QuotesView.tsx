@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { imgUrl } from "../../config/images";
 import LoadingTips from "../shipments/LoadingTips";
 import { DocumentosSection } from "./Documents/DocumentosSection";
-import { linbisFetch } from "../../services/linbisFetch";
 import "./styles/QuotesView.css";
 
 interface OutletContext {
@@ -56,6 +55,12 @@ interface Quote {
   currentFlow?: string;
   cargoStatus?: string;
   modeOfTransportation?: string;
+  hasPdf?: boolean;
+  financial?: {
+    currency?: string;
+    amount?: number;
+    display?: string;
+  };
   [key: string]: any;
 }
 
@@ -187,6 +192,83 @@ function InfoField({
   );
 }
 
+function prettyJsonLabel(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function KeyValueGrid({
+  data,
+  hiddenKeys = [],
+}: {
+  data: Record<string, any> | null | undefined;
+  hiddenKeys?: string[];
+}) {
+  if (!data || typeof data !== "object") return null;
+  const entries = Object.entries(data).filter(([k, v]) => {
+    if (hiddenKeys.includes(k)) return false;
+    if (v === null || v === undefined || v === "" || v === "N/A") return false;
+    if (typeof v === "object") return false;
+    return true;
+  });
+  if (entries.length === 0) return null;
+  return (
+    <div className="qv-info-grid">
+      {entries.map(([k, v]) => (
+        <InfoField key={k} label={prettyJsonLabel(k)} value={v} />
+      ))}
+    </div>
+  );
+}
+
+function CommoditiesView({ cargo }: { cargo: any }) {
+  const pieces: any[] =
+    cargo?.pieces && Array.isArray(cargo.pieces)
+      ? cargo.pieces
+      : cargo?.overallPieces && Array.isArray(cargo.overallPieces)
+        ? cargo.overallPieces
+        : [];
+
+  if (!pieces.length) return null;
+  return (
+    <div className="qv-card">
+      <h4>Commodities</h4>
+      <div className="qv-info-grid">
+        {pieces.slice(0, 12).map((p, idx) => {
+          const label =
+            p?.description ||
+            p?.commodity ||
+            p?.packageTypeName ||
+            p?.packageType ||
+            `Pieza ${idx + 1}`;
+          const dims =
+            p?.length && p?.width && p?.height
+              ? `${p.length}×${p.width}×${p.height}`
+              : null;
+          const weight = p?.weight ?? p?.totalWeight ?? null;
+          const volume = p?.volume ?? null;
+          return (
+            <InfoField
+              key={p?.id ?? idx}
+              label={String(label)}
+              value={[
+                dims ? `${dims} cm` : null,
+                weight != null ? `${weight} kg` : null,
+                volume != null ? `${volume} m³` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+              fullWidth
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 /* -- CollapsibleSection (modal) ----------------------------- */
 function CollapsibleSection({
   title,
@@ -267,7 +349,6 @@ function QuotesView({
   documentsOnly = false,
   initialQuoteFilter,
 }: { documentsOnly?: boolean; initialQuoteFilter?: string } = {}) {
-  const { accessToken, refreshAccessToken } = useOutletContext<OutletContext>();
   const clientOverride = useClientOverride();
   const { user, token, activeUsername: authUsername } = useAuth();
   const activeUsername = clientOverride || authUsername;
@@ -281,8 +362,11 @@ function QuotesView({
   const [error, setError] = useState<string | null>(null);
 
   // PDF state
-  const [availablePDFs, setAvailablePDFs] = useState<Set<string>>(new Set());
   const [downloadingPDF, setDownloadingPDF] = useState<string | null>(null);
+  const [quoteDetails, setQuoteDetails] = useState<Record<string, any>>({});
+  const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>(
+    {},
+  );
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -361,15 +445,10 @@ function QuotesView({
     });
   }, []);
 
-  const formatCLP = useCallback((priceString?: string) => {
-    if (!priceString) return null;
-    const numberMatch = priceString.match(/[\d.,]+/);
-    if (!numberMatch) return priceString;
-    const cleanNumber = numberMatch[0].replace(/,/g, "");
-    const num = parseFloat(cleanNumber);
-    if (isNaN(num)) return priceString;
-    return `$${new Intl.NumberFormat("es-CL").format(num)} CLP`;
-  }, []);
+  const formatCLP = useCallback(
+    (priceString?: string) => priceString ?? null,
+    [],
+  );
 
   /* -- Sorting ---------------------------------------------- */
   const handleSort = useCallback((column: string) => {
@@ -444,12 +523,12 @@ function QuotesView({
 
   /* -- Fetch ------------------------------------------------ */
   const fetchQuotes = async (page: number = 1, append: boolean = false) => {
-    if (!accessToken) {
-      setError("Debes ingresar un token primero");
-      return;
-    }
     if (!activeUsername) {
       setError("No se pudo obtener el nombre de usuario");
+      return;
+    }
+    if (!token) {
+      setError("Debes iniciar sesión para ver tus cotizaciones");
       return;
     }
     if (page === 1) setLoading(true);
@@ -458,33 +537,28 @@ function QuotesView({
 
     try {
       const queryParams = new URLSearchParams({
-        ConsigneeName: activeUsername,
-        Page: page.toString(),
-        ItemsPerPage: ITEMS_PER_PAGE.toString(),
-        SortBy: "newest",
+        ownerUsername: activeUsername,
+        page: page.toString(),
+        itemsPerPage: ITEMS_PER_PAGE.toString(),
       });
 
-      const response = await linbisFetch(
-        `https://api.linbis.com/Quotes?${queryParams}`,
-        {
-          method: "GET",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
+      const response = await fetch(`/api/quotes/list?${queryParams}`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-        accessToken,
-        refreshAccessToken,
-      );
+      });
 
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
 
       const data = await response.json();
-      const quotesArray: Quote[] = (Array.isArray(data) ? data : []).map(
-        normalizeQuote,
-      );
+      const quotesArray: Quote[] = (
+        Array.isArray(data?.quotes) ? data.quotes : []
+      ).map(normalizeQuote);
       const sortedArr = quotesArray.sort((a, b) => {
         const nA = parseInt(a.number?.replace(/\D/g, "") || "0", 10);
         const nB = parseInt(b.number?.replace(/\D/g, "") || "0", 10);
@@ -531,7 +605,7 @@ function QuotesView({
 
   /* -- Initial load / cache --------------------------------- */
   useEffect(() => {
-    if (!accessToken || !activeUsername) return;
+    if (!token || !activeUsername) return;
     const cacheKey = `quotesCache_${activeUsername}`;
     const cachedQuotes = localStorage.getItem(cacheKey);
     const cacheTimestamp = localStorage.getItem(`${cacheKey}_timestamp`);
@@ -557,7 +631,7 @@ function QuotesView({
     }
     setCurrentPage(1);
     fetchQuotes(1, false);
-  }, [accessToken, activeUsername]);
+  }, [token, activeUsername]);
 
   /* -- Quick search ----------------------------------------- */
   useEffect(() => {
@@ -847,37 +921,38 @@ function QuotesView({
     setExpandedQuoteId((prev) => (prev === quoteKey ? null : quoteKey));
   }, []);
 
-  /* -- Fetch available PDFs --------------------------------- */
-  useEffect(() => {
-    if (!token) return;
-    const fetchPDFs = async () => {
-      try {
-        const pdfListParams = new URLSearchParams();
-        if (activeUsername) {
-          pdfListParams.set("ownerUsername", activeUsername);
-        }
+  const fetchQuoteDetail = useCallback(
+    async (quoteNumber: string) => {
+      if (!token || !activeUsername || !quoteNumber) return;
+      if (quoteDetails[quoteNumber]) return;
+      if (loadingDetails[quoteNumber]) return;
 
+      setLoadingDetails((prev) => ({ ...prev, [quoteNumber]: true }));
+      try {
+        const params = new URLSearchParams({ ownerUsername: activeUsername });
         const res = await fetch(
-          `/api/quote-pdf/list?${pdfListParams.toString()}`,
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
+          `/api/quotes/${encodeURIComponent(quoteNumber)}?${params.toString()}`,
+          { headers: { Authorization: `Bearer ${token}` } },
         );
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && Array.isArray(data.pdfs)) {
-            const pdfNumbers = new Set<string>(
-              data.pdfs.map((pdf: { quoteNumber: string }) => pdf.quoteNumber),
-            );
-            setAvailablePDFs(pdfNumbers);
-          }
-        }
+        if (!res.ok) throw new Error("No se pudo cargar el detalle");
+        const data = await res.json();
+        setQuoteDetails((prev) => ({ ...prev, [quoteNumber]: data }));
       } catch (err) {
-        console.error("[QuotesView] Error fetching PDF list:", err);
+        console.error("[QuotesView] Error cargando detalle:", err);
+      } finally {
+        setLoadingDetails((prev) => ({ ...prev, [quoteNumber]: false }));
       }
-    };
-    fetchPDFs();
-  }, [token, activeUsername]);
+    },
+    [token, activeUsername, quoteDetails, loadingDetails],
+  );
+
+  useEffect(() => {
+    const q = quotes.find(
+      (x) => (x.id || x.number || "") === (expandedQuoteId || ""),
+    );
+    const number = q?.number;
+    if (number) fetchQuoteDetail(number);
+  }, [expandedQuoteId, quotes, fetchQuoteDetail]);
 
   const handleDownloadPDF = useCallback(
     async (quoteNumber: string) => {
@@ -890,7 +965,7 @@ function QuotesView({
         }
 
         const res = await fetch(
-          `/api/quote-pdf/download/${encodeURIComponent(quoteNumber)}?${downloadParams.toString()}`,
+          `/api/quotes/${encodeURIComponent(quoteNumber)}/pdf?${downloadParams.toString()}`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -918,17 +993,7 @@ function QuotesView({
           return;
         }
 
-        // Fallback legacy: contenidoBase64 (PDFs antiguos en MongoDB)
-        const data = await res.json();
-        if (data.success && data.quotePdf?.contenidoBase64) {
-          const link = document.createElement("a");
-          link.href = data.quotePdf.contenidoBase64;
-          link.download =
-            data.quotePdf.nombreArchivo || `Cotizacion_${quoteNumber}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        }
+        throw new Error("Respuesta inesperada al descargar PDF");
       } catch (err) {
         console.error("Error descargando PDF:", err);
       } finally {
@@ -1352,9 +1417,6 @@ function QuotesView({
                     <SortIcon column="number" />
                   </th>
                   <th className="qv-th qv-th--center">
-                    <span>Etapa</span>
-                  </th>
-                  <th className="qv-th qv-th--center">
                     <span>Vigencia</span>
                   </th>
                   <th
@@ -1405,6 +1467,10 @@ function QuotesView({
                   const quoteKey = quote.id || quote.number || index;
                   const isExpanded =
                     expandedQuoteId === (quote.id || quote.number || "");
+                  const detail = quote.number
+                    ? quoteDetails[quote.number]
+                    : undefined;
+                  const merged = detail ? { ...quote, ...detail } : quote;
                   return (
                     <React.Fragment key={quoteKey}>
                       <tr
@@ -1424,9 +1490,6 @@ function QuotesView({
                             <polyline points="9 18 15 12 9 6" />
                           </svg>
                           {quote.number || "---"}
-                        </td>
-                        <td className="qv-td qv-td--center">
-                          <FlowBadge currentFlow={quote.currentFlow} />
                         </td>
                         <td className="qv-td qv-td--center">
                           <StatusBadge validUntilDate={quote.validUntil_Date} />
@@ -1459,7 +1522,7 @@ function QuotesView({
                           className="qv-td qv-td--center"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {availablePDFs.has(quote.number || "") ? (
+                          {quote.hasPdf ? (
                             <button
                               className="qv-pdf-btn"
                               disabled={downloadingPDF === quote.number}
@@ -1487,8 +1550,20 @@ function QuotesView({
                       </tr>
                       {isExpanded && (
                         <tr className="qv-accordion-row">
-                          <td colSpan={11} className="qv-accordion-cell">
+                          <td colSpan={10} className="qv-accordion-cell">
                             <div className="qv-accordion-content">
+                                  {quote.number &&
+                                    loadingDetails[quote.number] === true && (
+                                      <div
+                                        style={{
+                                          padding: "10px 12px",
+                                          color: "#6b7280",
+                                          fontSize: 12,
+                                        }}
+                                      >
+                                        Cargando detalle…
+                                      </div>
+                                    )}
                               {/* Route summary */}
                               <div className="qv-route-card">
                                 <div className="qv-route-card__point">
@@ -1496,11 +1571,11 @@ function QuotesView({
                                     {t("quotesView.origin")}
                                   </span>
                                   <span className="qv-route-card__value">
-                                    {quote.origin || "N/A"}
+                                    {merged.origin || "N/A"}
                                   </span>
-                                  {quote.deperture_Date && (
+                                  {merged.deperture_Date && (
                                     <span className="qv-route-card__date">
-                                      {formatDateShort(quote.deperture_Date)}
+                                      {formatDateShort(merged.deperture_Date)}
                                     </span>
                                   )}
                                 </div>
@@ -1516,9 +1591,9 @@ function QuotesView({
                                     <line x1="5" y1="12" x2="19" y2="12" />
                                     <polyline points="12 5 19 12 12 19" />
                                   </svg>
-                                  {quote.transitDays != null && (
+                                  {merged.transitDays != null && (
                                     <span className="qv-route-card__transit">
-                                      {quote.transitDays}{" "}
+                                      {merged.transitDays}{" "}
                                       {t("quotesView.transitDays")}
                                     </span>
                                   )}
@@ -1528,11 +1603,11 @@ function QuotesView({
                                     {t("quotesView.destination")}
                                   </span>
                                   <span className="qv-route-card__value">
-                                    {quote.destination || "N/A"}
+                                    {merged.destination || "N/A"}
                                   </span>
-                                  {quote.arrival_Date && (
+                                  {merged.arrival_Date && (
                                     <span className="qv-route-card__date">
-                                      {formatDateShort(quote.arrival_Date)}
+                                      {formatDateShort(merged.arrival_Date)}
                                     </span>
                                   )}
                                 </div>
@@ -1541,14 +1616,11 @@ function QuotesView({
                               {/* Tabs */}
                               {documentsOnly ? (
                                 <DocumentosSection
-                                  quoteId={String(
-                                    quote.id || quote.number || "",
-                                  )}
+                                  quoteId={String(quote.number || "")}
                                   onCountChange={(count) =>
                                     setDocumentCounts((prev) => ({
                                       ...prev,
-                                      [String(quote.id || quote.number || "")]:
-                                        count,
+                                      [String(quote.number || "")]: count,
                                     }))
                                   }
                                 />
@@ -1593,15 +1665,15 @@ function QuotesView({
                                                 label={t(
                                                   "quotesView.quoteNumber",
                                                 )}
-                                                value={quote.number}
+                                                value={merged.number}
                                               />
                                               <InfoField
                                                 label={t(
                                                   "quotesView.issueDate",
                                                 )}
                                                 value={
-                                                  quote.date
-                                                    ? formatDateLong(quote.date)
+                                                  merged.date
+                                                    ? formatDateLong(merged.date)
                                                     : null
                                                 }
                                               />
@@ -1610,12 +1682,16 @@ function QuotesView({
                                                   "quotesView.validUntil",
                                                 )}
                                                 value={
-                                                  quote.validUntil_Date
+                                                  merged.validUntil_Date
                                                     ? formatDateLong(
-                                                        quote.validUntil_Date,
+                                                        merged.validUntil_Date,
                                                       )
                                                     : null
                                                 }
+                                              />
+                                              <InfoField
+                                                label="Incoterm"
+                                                value={merged?.customerInput?.incoterm}
                                               />
                                             </div>
                                           </div>
@@ -1626,21 +1702,39 @@ function QuotesView({
                                                 label={t(
                                                   "quotesView.transitDaysLabel",
                                                 )}
-                                                value={quote.transitDays}
+                                                value={merged.transitDays}
                                               />
                                               <InfoField
                                                 label={t(
                                                   "quotesView.transportMode",
                                                 )}
                                                 value={
-                                                  quote.modeOfTransportation
+                                                  merged.modeOfTransportation
                                                 }
+                                              />
+                                              <InfoField
+                                                label="Carrier"
+                                                value={
+                                                  merged?.route?.carrier ||
+                                                  merged?.carrier ||
+                                                  merged?.routing?.carrier ||
+                                                  merged?.rutaSeleccionada?.carrier
+                                                }
+                                              />
+                                              <InfoField
+                                                label="Routing"
+                                                value={
+                                                  merged?.routing?.summary ||
+                                                  merged?.route?.summary ||
+                                                  merged?.route?.routing
+                                                }
+                                                fullWidth
                                               />
                                               <InfoField
                                                 label={t(
                                                   "quotesView.paymentType",
                                                 )}
-                                                value={quote.paymentType}
+                                                value={merged.paymentType}
                                               />
                                             </div>
                                           </div>
@@ -1653,17 +1747,25 @@ function QuotesView({
                                                 label={t(
                                                   "quotesView.carrierBroker",
                                                 )}
-                                                value={quote.carrierBroker}
+                                                value={merged.carrierBroker}
                                                 fullWidth
                                               />
                                               <InfoField
                                                 label={t(
                                                   "quotesView.customerRef",
                                                 )}
-                                                value={quote.customerReference}
+                                                value={merged.customerReference}
                                                 fullWidth
                                               />
                                             </div>
+                                            <CollapsibleSection
+                                              title="Datos del cliente"
+                                              defaultOpen={false}
+                                            >
+                                              <KeyValueGrid
+                                                data={merged?.customerInput}
+                                              />
+                                            </CollapsibleSection>
                                           </div>
                                         </div>
                                       ),
@@ -1702,14 +1804,18 @@ function QuotesView({
                                                 label={t(
                                                   "quotesView.totalPieces",
                                                 )}
-                                                value={quote.totalCargo_Pieces}
+                                                value={
+                                                  merged?.cargo?.totals?.totalPieces ??
+                                                  merged.totalCargo_Pieces
+                                                }
                                               />
                                               <InfoField
                                                 label={t(
                                                   "quotesView.containers",
                                                 )}
                                                 value={
-                                                  quote.totalCargo_Container
+                                                  merged?.cargo?.totalContainers ??
+                                                  merged.totalCargo_Container
                                                 }
                                               />
                                             </div>
@@ -1724,7 +1830,8 @@ function QuotesView({
                                                   "quotesView.totalWeight",
                                                 )}
                                                 value={
-                                                  quote.totalCargo_WeightDisplayValue
+                                                  merged?.cargo?.totals?.totalWeight ??
+                                                  merged.totalCargo_WeightDisplayValue
                                                 }
                                               />
                                               <InfoField
@@ -1732,7 +1839,8 @@ function QuotesView({
                                                   "quotesView.totalVolume",
                                                 )}
                                                 value={
-                                                  quote.totalCargo_VolumeDisplayValue
+                                                  merged?.cargo?.totals?.totalVolume ??
+                                                  merged.totalCargo_VolumeDisplayValue
                                                 }
                                               />
                                               <InfoField
@@ -1740,11 +1848,13 @@ function QuotesView({
                                                   "quotesView.volumeWeight",
                                                 )}
                                                 value={
-                                                  quote.totalCargo_VolumeWeightDisplayValue
+                                                  merged?.cargo?.totals?.totalVolumetricWeight ??
+                                                  merged.totalCargo_VolumeWeightDisplayValue
                                                 }
                                               />
                                             </div>
                                           </div>
+                                          <CommoditiesView cargo={merged?.cargo} />
                                           <div className="qv-card">
                                             <h4>
                                               {t("quotesView.statusSecurity")}
@@ -1754,13 +1864,13 @@ function QuotesView({
                                                 label={t(
                                                   "quotesView.hazardous",
                                                 )}
-                                                value={quote.hazardous}
+                                                value={merged.hazardous}
                                               />
                                               <InfoField
                                                 label={t(
                                                   "quotesView.cargoStatus",
                                                 )}
-                                                value={quote.cargoStatus}
+                                                value={merged.cargoStatus}
                                               />
                                             </div>
                                           </div>
@@ -1798,15 +1908,11 @@ function QuotesView({
                                       ),
                                       content: (
                                         <DocumentosSection
-                                          quoteId={String(
-                                            quote.id || quote.number || "",
-                                          )}
+                                          quoteId={String(quote.number || "")}
                                           onCountChange={(count) =>
                                             setDocumentCounts((prev) => ({
                                               ...prev,
-                                              [String(
-                                                quote.id || quote.number || "",
-                                              )]: count,
+                                              [String(quote.number || "")]: count,
                                             }))
                                           }
                                         />
@@ -1839,9 +1945,11 @@ function QuotesView({
                                             {t("quotesView.totalExpense")}
                                           </span>
                                           <span className="qv-finance-card__amount">
-                                            {formatCLP(
-                                              quote.totalCharge_IncomeDisplayValue,
-                                            ) || "$0 CLP"}
+                                            {quote.financial?.display ||
+                                              (typeof quote.financial?.amount ===
+                                              "number"
+                                                ? `USD ${quote.financial.amount.toFixed(2)}`
+                                                : "USD 0.00")}
                                           </span>
                                           <span className="qv-finance-card__note">
                                             {t("quotesView.estimatedAmount")}

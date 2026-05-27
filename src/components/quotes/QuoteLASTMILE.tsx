@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { useOutletContext } from "react-router-dom";
+// Sin Linbis: no usamos OutletContext
 import { useAuth } from "../../auth/AuthContext";
 import { useAuditLog } from "../../hooks/useAuditLog";
 import Select from "react-select";
@@ -30,7 +30,7 @@ import {
 import { PieceAccordionLASTMILE } from "./Handlers/LASTMILE/PieceAccordionLASTMILE";
 import { packageTypeOptions } from "./PackageTypes/PiecestypesAIR";
 import { Modal, Button } from "react-bootstrap";
-import { linbisFetch } from "../../services/linbisFetch";
+// Linbis removido: cotizaciones México usan R2/Mongo
 import { useQuoteTracking } from "../../hooks/useQuoteTracking";
 import {
   useAgenciaAduanas,
@@ -47,12 +47,6 @@ import "flag-icons/css/flag-icons.min.css";
 import { useScrollToTopOnStepChange } from "./hooks/useScrollToTopOnStepChange";
 import { QuoteGeneratingMessage } from "./QuoteGeneratingMessage";
 import "./QuoteLASTMILE.css";
-
-interface OutletContext {
-  accessToken: string;
-  refreshAccessToken: () => Promise<string>;
-  onLogout: () => void;
-}
 
 const MAX_PIECES_LM = 10;
 const VALIDITY_DAYS = 5;
@@ -234,7 +228,7 @@ function QuoteLASTMILE({
   preselectedDestination,
   isEjecutivoMode = false,
 }: QuoteLastMileProps = {}) {
-  const { accessToken, refreshAccessToken } = useOutletContext<OutletContext>();
+  // México: cotizaciones sin Linbis (solo JWT del portal)
   const {
     user,
     token,
@@ -1504,49 +1498,24 @@ function QuoteLASTMILE({
     setResponse(null);
 
     try {
-      // Obtener id máximo previo
-      let previousMaxId = 0;
-      try {
-        const preRes = await linbisFetch(
-          `https://api.linbis.com/Quotes?ConsigneeName=${encodeURIComponent(effectiveUsername)}`,
-          { headers: { Accept: "application/json" } },
-          accessToken,
-          refreshAccessToken,
-        );
-        if (preRes.ok) {
-          const preData = await preRes.json();
-          if (Array.isArray(preData)) {
-            previousMaxId = Math.max(
-              0,
-              ...preData.map((q: any) => Number(q.id) || 0),
-            );
-          }
-        }
-      } catch {
-        /* ignore */
-      }
-
-      const payload = buildPayload();
-      if (!payload) throw new Error("No se pudo construir el payload");
-
-      const res = await linbisFetch(
-        "https://api.linbis.com/Quotes/create",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+      const nextRes = await fetch("/api/quotes/next-number", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "x-owner-username": effectiveUsername,
         },
-        accessToken,
-        refreshAccessToken,
-      );
-
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errText}`);
+        body: JSON.stringify({ ownerUsername: effectiveUsername }),
+      });
+      if (!nextRes.ok) {
+        const txt = await nextRes.text();
+        throw new Error(`No se pudo generar folio: ${txt}`);
       }
+      const nextData = await nextRes.json();
+      const quoteNumber = String(nextData?.number || "").trim();
+      if (!quoteNumber) throw new Error("No se recibió folio de cotización");
 
-      const data = await res.json();
-      setResponse(data);
+      setResponse({ quoteNumber });
 
       if (isEjecutivoMode) {
         registrarEvento({
@@ -1570,7 +1539,7 @@ function QuoteLASTMILE({
         tipo: tipoAccion,
       });
 
-      await generateQuotePDF(data, previousMaxId);
+      await generateQuotePDF(quoteNumber);
       setBtnPhase("check");
     } catch (err: any) {
       setBtnPhase("idle");
@@ -1580,46 +1549,11 @@ function QuoteLASTMILE({
     }
   };
 
-  const generateQuotePDF = async (
-    apiResponse?: any,
-    previousMaxId?: number,
-  ) => {
+  const generateQuotePDF = async (quoteNumberParam: string) => {
     try {
       if (!origenSel || !destinoSel) return;
 
-      // Obtener quoteNumber real con polling
-      let quoteNumber = "";
-      try {
-        const pollDelays = [500, 1000, 1000];
-        for (
-          let attempt = 0;
-          attempt < pollDelays.length && !quoteNumber;
-          attempt++
-        ) {
-          await new Promise((r) => setTimeout(r, pollDelays[attempt]));
-          const linbisRes = await linbisFetch(
-            `https://api.linbis.com/Quotes?ConsigneeName=${encodeURIComponent(effectiveUsername)}`,
-            { headers: { Accept: "application/json" } },
-            accessToken,
-            refreshAccessToken,
-          );
-          if (linbisRes.ok) {
-            const linbisData = await linbisRes.json();
-            if (Array.isArray(linbisData) && linbisData.length > 0) {
-              const newest = linbisData.reduce(
-                (max: any, q: any) =>
-                  (Number(q.id) || 0) > (Number(max.id) || 0) ? q : max,
-                linbisData[0],
-              );
-              if (Number(newest.id) > (previousMaxId || 0)) {
-                quoteNumber = newest.number;
-              }
-            }
-          }
-        }
-      } catch {
-        /* ignore */
-      }
+      const quoteNumber = String(quoteNumberParam || "").trim();
 
       if (quoteNumber) {
         trackComplete({ quoteNumber });
@@ -1985,33 +1919,76 @@ function QuoteLASTMILE({
         const pdfBase64 = await generatePDFBase64(pdfElement);
 
         if (pdfBase64 && quoteNumber) {
+          const quoteJson = {
+            number: quoteNumber,
+            createdAt: new Date().toISOString(),
+            validUntil: getValidityDate().toISOString(),
+            origin: origenSel.label,
+            destination: destinoSel.label,
+            modeOfTransportation:
+              String(servicioSel || "").toLowerCase() === "aéreo"
+                ? "aéreo"
+                : String(servicioSel || "").toLowerCase() === "fcl"
+                  ? "fcl"
+                  : "lcl",
+            transitDays: null,
+            cargo: {
+              totals: cargoTotals,
+              pieces: piecesData,
+              servicio: servicioSel,
+              incoterm: incotermSel,
+            },
+            customerInput: {
+              pickupAddress,
+              deliveryAddress,
+              seguroActivo,
+              ...(incotermSel === "DDP"
+                ? {
+                    valorMercaderia: valorMercaderiaDDPNum,
+                    valorSeguro: valorSeguroDDP,
+                  }
+                : {}),
+            },
+            financial: {
+              currency: "USD",
+              amount:
+                typeof pdfTotalCharges === "number"
+                  ? Number(pdfTotalCharges.toFixed(2))
+                  : 0,
+              display:
+                typeof pdfTotalCharges === "number"
+                  ? `USD ${Number(pdfTotalCharges.toFixed(2)).toFixed(2)}`
+                  : "USD 0.00",
+            },
+            breakdown: {
+              charges: pdfCharges,
+              totalCharges: pdfTotalCharges,
+            },
+          };
+
           try {
-            const bodyPayload: any = {
-              quoteNumber,
-              nombreArchivo: filename,
-              contenidoBase64: pdfBase64,
-              tipoServicio: "LASTMILE",
-              origen: origenSel.label,
-              destino: destinoSel.label,
-            };
-            if (
-              isEjecutivoMode &&
-              (user?.username === "Ejecutivo" || isPricingRole) &&
-              clienteSeleccionado
-            ) {
-              bodyPayload.usuarioId = clienteSeleccionado.username;
-              bodyPayload.subidoPor = clienteSeleccionado.email;
-            }
-            await fetch("/api/quote-pdf/upload", {
+            const saveRes = await fetch("/api/quotes/save", {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
+                "x-owner-username": effectiveUsername,
               },
-              body: JSON.stringify(bodyPayload),
+              body: JSON.stringify({
+                ownerUsername: effectiveUsername,
+                number: quoteNumber,
+                quoteJson,
+                pdfBase64,
+              }),
             });
+            if (!saveRes.ok) {
+              console.error(
+                "[QuoteLASTMILE] Error guardando cotización:",
+                await saveRes.text(),
+              );
+            }
           } catch (err) {
-            console.error("[QuoteLASTMILE] Error subiendo PDF:", err);
+            console.error("[QuoteLASTMILE] Error guardando cotización:", err);
           }
         }
 

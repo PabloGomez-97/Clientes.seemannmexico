@@ -24,6 +24,16 @@ import { buildLclQuoteEmailHTML, getLclQuoteEmailSubject, type LclQuoteEmailData
 import { buildSpecialQuoteEmailHTML, getSpecialQuoteEmailSubject, type SpecialQuoteEmailData } from '../api/emails/specialQuoteEmailTemplate.ts';
 import { buildR2Key, getPublicUrl, uploadPDF, deletePDF, deleteAllUserPDFs, downloadPDFBuffer } from '../api/services/r2Storage.ts';
 import { buildDocR2Key, uploadDocument, downloadDocumentBuffer, deleteDocument } from '../api/services/r2DocumentStorage.ts';
+import {
+  putMexicoQuoteJson,
+  getMexicoQuoteJsonBuffer,
+  putMexicoQuotePdf,
+  getMexicoQuotePdfBuffer,
+} from '../api/services/r2QuotesMexicoStorage.ts';
+import {
+  getLinbisAccessToken,
+  saveLinbisRefreshToken,
+} from '../api/services/linbisTokenStore.ts';
 
 /** =========================
  *  Entorno + JWT
@@ -1023,6 +1033,88 @@ QuotePDFSchema.index({ quoteNumber: 1, usuarioId: 1 }, { unique: true });
 
 const QuotePDF = (mongoose.models.QuotePDF || 
   mongoose.model<IQuotePDFDoc>('QuotePDF', QuotePDFSchema)) as QuotePDFModel;
+
+// ============================================================
+// MODELOS: COTIZACIONES MÉXICO (contador + índice)
+// ============================================================
+
+interface IQuoteCounter {
+  scope: 'mexico-global';
+  seq: number;
+}
+
+interface IQuoteCounterDoc extends IQuoteCounter, mongoose.Document {
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+type QuoteCounterModel = mongoose.Model<IQuoteCounterDoc>;
+
+const QuoteCounterSchema = new mongoose.Schema<IQuoteCounterDoc>(
+  {
+    scope: { type: String, required: true, unique: true, index: true },
+    seq: { type: Number, required: true, default: 0 },
+  },
+  { timestamps: true },
+);
+
+const QuoteCounter = (mongoose.models.QuoteCounter ||
+  mongoose.model<IQuoteCounterDoc>(
+    'QuoteCounter',
+    QuoteCounterSchema,
+  )) as QuoteCounterModel;
+
+interface IQuoteIndex {
+  number: string;
+  usuarioId: string;
+  createdAt: Date;
+  validUntil?: Date;
+  origin?: string;
+  destination?: string;
+  modeOfTransportation?: string;
+  transitDays?: number;
+  financial?: {
+    currency: 'USD';
+    amount?: number;
+    display?: string;
+  };
+  jsonKey: string;
+  pdfKey: string;
+}
+
+interface IQuoteIndexDoc extends IQuoteIndex, mongoose.Document {
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+type QuoteIndexModel = mongoose.Model<IQuoteIndexDoc>;
+
+const QuoteIndexSchema = new mongoose.Schema<IQuoteIndexDoc>(
+  {
+    number: { type: String, required: true, index: true },
+    usuarioId: { type: String, required: true, index: true },
+    createdAt: { type: Date, required: true, index: true },
+    validUntil: { type: Date },
+    origin: { type: String },
+    destination: { type: String },
+    modeOfTransportation: { type: String },
+    transitDays: { type: Number },
+    financial: {
+      currency: { type: String, default: 'USD' },
+      amount: { type: Number },
+      display: { type: String },
+    },
+    jsonKey: { type: String, required: true },
+    pdfKey: { type: String, required: true },
+  },
+  { timestamps: true },
+);
+
+QuoteIndexSchema.index({ number: 1 }, { unique: true });
+QuoteIndexSchema.index({ usuarioId: 1, createdAt: -1 });
+
+const QuoteIndex = (mongoose.models.QuoteIndex ||
+  mongoose.model<IQuoteIndexDoc>('QuoteIndex', QuoteIndexSchema)) as QuoteIndexModel;
 
   // ============================================================
 // CONSTANTES PARA DOCUMENTOS
@@ -2899,110 +2991,41 @@ app.delete('/api/admin/users/:id', auth, async (req, res) => {
   }
 });
 
-// Modelo para guardar el token (en memoria para dev local)
-interface LinbisTokenCache {
-  refresh_token: string;
-  access_token?: string;
-  access_token_expiry?: number;
-}
-
-let linbisTokenCache: LinbisTokenCache = {
-  refresh_token: process.env.LINBIS_REFRESH_TOKEN || '',
-  access_token: undefined,
-  access_token_expiry: undefined
-};
-
-// GET /api/linbis-token - Obtener token (con renovación automática)
-app.get('/api/linbis-token', async (req, res) => {
+// GET /api/linbis-token - Obtener token (MongoDB + renovación automática)
+app.get('/api/linbis-token', async (_req, res) => {
   console.log('🔵 [linbis-token] Endpoint llamado');
   try {
-    const LINBIS_CLIENT_ID = process.env.LINBIS_CLIENT_ID;
-    const LINBIS_TOKEN_URL = process.env.LINBIS_TOKEN_URL;
-
-    if (!LINBIS_CLIENT_ID || !LINBIS_TOKEN_URL) {
-      return res.status(500).json({ 
-        error: 'Missing Linbis configuration. Set LINBIS_CLIENT_ID and LINBIS_TOKEN_URL in .env' 
-      });
-    }
-
-    if (!linbisTokenCache.refresh_token) {
-      return res.status(500).json({ 
-        error: 'No refresh token found. Please initialize it first with POST /api/admin/init-linbis-token' 
-      });
-    }
-
-    const now = Date.now();
-    if (linbisTokenCache.access_token && 
-        linbisTokenCache.access_token_expiry && 
-        linbisTokenCache.access_token_expiry > now + 300000) {
-      console.log('[linbis-token] Using cached access token');
-      return res.json({ token: linbisTokenCache.access_token });
-    }
-
-    console.log('[linbis-token] Refreshing access token...');
-
-    const response = await fetch(LINBIS_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        client_id: LINBIS_CLIENT_ID,
-        refresh_token: linbisTokenCache.refresh_token,
-        scope: 'https://linbis.onmicrosoft.com/linbis-api/access_as_user openid profile offline_access'
-      })
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[linbis-token] Failed to refresh:', errorText);
-      return res.status(500).json({ error: 'Failed to refresh Linbis token' });
-    }
-
-    const data = await response.json() as {
-      access_token: string;
-      expires_in: number;
-      refresh_token?: string;
-    };
-
-    linbisTokenCache.access_token = data.access_token;
-    linbisTokenCache.access_token_expiry = now + (data.expires_in * 1000);
-
-    if (data.refresh_token) {
-      console.log('[linbis-token] Updating refresh token in cache');
-      linbisTokenCache.refresh_token = data.refresh_token;
-    }
-
-    console.log('[linbis-token] Token refreshed successfully');
-    return res.json({ token: linbisTokenCache.access_token });
-
+    const token = await getLinbisAccessToken();
+    return res.json({ token });
   } catch (error) {
     console.error('[linbis-token] Error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Internal server error',
+    });
   }
 });
 
-// POST /api/admin/init-linbis-token - Inicializar token
-app.post('/api/admin/init-linbis-token', (req, res) => {
+// POST /api/admin/init-linbis-token - Inicializar token en MongoDB
+app.post('/api/admin/init-linbis-token', async (req, res) => {
   try {
-    const { refresh_token } = req.body;
+    const { refresh_token } = req.body as { refresh_token?: string };
 
     if (!refresh_token) {
       return res.status(400).json({ error: 'refresh_token is required' });
     }
 
-    linbisTokenCache.refresh_token = refresh_token;
-    linbisTokenCache.access_token = undefined;
-    linbisTokenCache.access_token_expiry = undefined;
-
+    await saveLinbisRefreshToken(refresh_token);
     console.log('[init-linbis-token] Refresh token initialized successfully');
 
-    return res.json({ 
-      success: true, 
-      message: 'Refresh token initialized successfully' 
+    return res.json({
+      success: true,
+      message: 'Refresh token initialized successfully',
     });
   } catch (error) {
     console.error('[init-linbis-token] Error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : 'Internal server error',
+    });
   }
 });
 
@@ -3996,6 +4019,251 @@ app.get('/api/documents/all', auth, async (req, res) => {
   } catch (error) {
     console.error('[documents/all] Error:', error);
     return res.status(500).json({ error: 'Error al obtener documentos' });
+  }
+});
+
+// ============================================================
+// RUTAS: COTIZACIONES MÉXICO (R2 + Mongo índice/contador)
+// ============================================================
+
+app.post('/api/quotes/next-number', auth, async (req, res) => {
+  try {
+    const currentUser = (req as any).user as AuthPayload;
+    const ownerUsername = await resolveDocumentOwnerUsername(
+      currentUser,
+      getRequestedDocumentOwnerUsername(req),
+    );
+
+    const counter = await QuoteCounter.findOneAndUpdate(
+      { scope: 'mexico-global' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true, setDefaultsOnInsert: true },
+    );
+
+    const seq = Number(counter.seq) || 0;
+    const number = `QUO${String(seq).padStart(7, '0')}`;
+
+    return res.json({ success: true, ownerUsername, number, seq });
+  } catch (error: any) {
+    console.error('[quotes/next-number] Error:', error);
+    return res.status(500).json({ error: error?.message || 'Error interno' });
+  }
+});
+
+app.post('/api/quotes/save', auth, async (req, res) => {
+  try {
+    const currentUser = (req as any).user as AuthPayload;
+    const ownerUsername = await resolveDocumentOwnerUsername(
+      currentUser,
+      getRequestedDocumentOwnerUsername(req),
+    );
+
+    const { number, quoteJson, pdfBase64 } = (req.body as any) || {};
+    const quoteNumber = String(number || '').trim();
+    if (!quoteNumber) return res.status(400).json({ error: 'Falta number' });
+    if (!quoteJson) return res.status(400).json({ error: 'Falta quoteJson' });
+    const pdfRaw = String(pdfBase64 || '').trim();
+    if (!pdfRaw) return res.status(400).json({ error: 'Falta pdfBase64' });
+
+    const base64Content = pdfRaw.includes('base64,')
+      ? pdfRaw.split('base64,')[1]
+      : pdfRaw;
+    const pdfBuffer = Buffer.from(base64Content, 'base64');
+    if (!pdfBuffer.length) return res.status(400).json({ error: 'PDF inválido' });
+
+    const createdAtRaw =
+      (quoteJson?.createdAt as any) ||
+      (quoteJson?.date as any) ||
+      (quoteJson?.issueDate as any) ||
+      new Date().toISOString();
+    const createdAt = new Date(createdAtRaw);
+    const validUntilRaw =
+      (quoteJson?.validUntil as any) ||
+      (quoteJson?.validUntil_Date as any) ||
+      (quoteJson?.validUntilDate as any) ||
+      undefined;
+    const validUntil = validUntilRaw ? new Date(validUntilRaw) : undefined;
+
+    const origin =
+      (quoteJson?.origin as any)?.name ||
+      quoteJson?.origin ||
+      quoteJson?.route?.origin ||
+      undefined;
+    const destination =
+      (quoteJson?.destination as any)?.name ||
+      quoteJson?.destination ||
+      quoteJson?.route?.destination ||
+      undefined;
+    const modeOfTransportation =
+      quoteJson?.modeOfTransportation ||
+      quoteJson?.transport ||
+      quoteJson?.mode ||
+      undefined;
+    const transitDays =
+      typeof quoteJson?.transitDays === 'number'
+        ? quoteJson.transitDays
+        : undefined;
+
+    const financial =
+      quoteJson?.financial && typeof quoteJson.financial === 'object'
+        ? {
+            currency: 'USD' as const,
+            amount:
+              typeof quoteJson.financial.amount === 'number'
+                ? quoteJson.financial.amount
+                : undefined,
+            display:
+              typeof quoteJson.financial.display === 'string'
+                ? quoteJson.financial.display
+                : undefined,
+          }
+        : { currency: 'USD' as const };
+
+    const { key: jsonKey, bytes: jsonBytes } = await putMexicoQuoteJson(
+      ownerUsername,
+      quoteNumber,
+      quoteJson,
+      { quoteNumber, ownerUsername },
+    );
+    const { key: pdfKey, bytes: pdfBytes } = await putMexicoQuotePdf(
+      ownerUsername,
+      quoteNumber,
+      pdfBuffer,
+      { quoteNumber, ownerUsername },
+    );
+
+    await QuoteIndex.updateOne(
+      { number: quoteNumber },
+      {
+        $set: {
+          number: quoteNumber,
+          usuarioId: ownerUsername,
+          createdAt: isNaN(createdAt.getTime()) ? new Date() : createdAt,
+          validUntil:
+            validUntil && !isNaN(validUntil.getTime())
+              ? validUntil
+              : undefined,
+          origin: origin ? String(origin) : undefined,
+          destination: destination ? String(destination) : undefined,
+          modeOfTransportation: modeOfTransportation
+            ? String(modeOfTransportation).toLowerCase()
+            : undefined,
+          transitDays,
+          financial,
+          jsonKey,
+          pdfKey,
+        },
+      },
+      { upsert: true },
+    );
+
+    return res.json({
+      success: true,
+      number: quoteNumber,
+      ownerUsername,
+      jsonKey,
+      pdfKey,
+      bytes: { json: jsonBytes, pdf: pdfBytes },
+    });
+  } catch (error: any) {
+    console.error('[quotes/save] Error:', error);
+    return res.status(500).json({ error: error?.message || 'Error interno' });
+  }
+});
+
+app.get('/api/quotes/list', auth, async (req, res) => {
+  try {
+    const currentUser = (req as any).user as AuthPayload;
+    const ownerUsername = await resolveDocumentOwnerUsername(
+      currentUser,
+      getRequestedDocumentOwnerUsername(req),
+    );
+
+    const page = Math.max(1, parseInt(String(req.query.page || '1'), 10) || 1);
+    const itemsPerPage = Math.min(
+      50,
+      Math.max(1, parseInt(String(req.query.itemsPerPage || '10'), 10) || 10),
+    );
+
+    const filterNumber = String(req.query.number || '').trim();
+    const q: any = { usuarioId: ownerUsername };
+    if (filterNumber) q.number = new RegExp(filterNumber, 'i');
+
+    const total = await QuoteIndex.countDocuments(q);
+    const quotes = await QuoteIndex.find(q)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * itemsPerPage)
+      .limit(itemsPerPage)
+      .lean();
+
+    return res.json({
+      success: true,
+      ownerUsername,
+      page,
+      itemsPerPage,
+      total,
+      quotes: quotes.map((qt: any) => ({
+        id: qt._id,
+        number: qt.number,
+        date: qt.createdAt,
+        validUntil_Date: qt.validUntil,
+        origin: qt.origin,
+        destination: qt.destination,
+        modeOfTransportation: qt.modeOfTransportation,
+        transitDays: qt.transitDays,
+        financial: qt.financial,
+        hasPdf: Boolean(qt.pdfKey),
+      })),
+    });
+  } catch (error: any) {
+    console.error('[quotes/list] Error:', error);
+    return res.status(500).json({ error: error?.message || 'Error interno' });
+  }
+});
+
+app.get('/api/quotes/:number', auth, async (req, res) => {
+  try {
+    const currentUser = (req as any).user as AuthPayload;
+    const ownerUsername = await resolveDocumentOwnerUsername(
+      currentUser,
+      getRequestedDocumentOwnerUsername(req),
+    );
+
+    const number = decodeURIComponent(String(req.params.number || ''));
+    const index = await QuoteIndex.findOne({ number, usuarioId: ownerUsername });
+    if (!index) return res.status(404).json({ error: 'Cotización no encontrada' });
+
+    const jsonBuffer = await getMexicoQuoteJsonBuffer(ownerUsername, number);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    return res.status(200).send(jsonBuffer);
+  } catch (error: any) {
+    console.error('[quotes/get] Error:', error);
+    return res.status(500).json({ error: error?.message || 'Error interno' });
+  }
+});
+
+app.get('/api/quotes/:number/pdf', auth, async (req, res) => {
+  try {
+    const currentUser = (req as any).user as AuthPayload;
+    const ownerUsername = await resolveDocumentOwnerUsername(
+      currentUser,
+      getRequestedDocumentOwnerUsername(req),
+    );
+
+    const number = decodeURIComponent(String(req.params.number || ''));
+    const index = await QuoteIndex.findOne({ number, usuarioId: ownerUsername });
+    if (!index) return res.status(404).json({ error: 'Cotización no encontrada' });
+
+    const pdfBuffer = await getMexicoQuotePdfBuffer(ownerUsername, number);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=\"Cotizacion_${number}.pdf\"`,
+    );
+    return res.end(pdfBuffer);
+  } catch (error: any) {
+    console.error('[quotes/pdf] Error:', error);
+    return res.status(500).json({ error: error?.message || 'Error interno' });
   }
 });
 

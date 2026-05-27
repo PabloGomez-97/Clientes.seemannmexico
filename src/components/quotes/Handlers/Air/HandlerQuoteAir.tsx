@@ -45,11 +45,7 @@ export interface SelectOption {
 
 export type Currency = "USD" | "EUR" | "GBP" | "CAD" | "CHF" | "CLP" | "SEK";
 
-export interface OutletContext {
-  accessToken: string;
-  refreshAccessToken: () => Promise<string>;
-  onLogout: () => void;
-}
+// Sin Linbis: no usamos OutletContext en cotizaciones México
 
 // FUNCIONES HELPER - PARSING Y FORMATEO
 export const extractPrice = (priceStr: string | null): number => {

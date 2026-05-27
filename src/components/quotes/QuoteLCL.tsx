@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useOutletContext } from "react-router-dom";
+// Sin Linbis: no usamos OutletContext
 import { useAuth } from "../../auth/AuthContext";
 import { useAuditLog } from "../../hooks/useAuditLog";
 import * as XLSX from "xlsx";
@@ -45,7 +45,6 @@ import GenerateOperationModal from "./Operations/GenerateOperationModal";
 import { useOperationModalAfterPdf } from "./Operations/useOperationModalAfterPdf";
 import {
   type PieceData,
-  type OutletContext,
   type RutaLCL,
   type SelectOption,
   type QuoteLCLProps,
@@ -64,7 +63,7 @@ import {
   OversizeNotifyExecutive,
   type OversizeReason,
 } from "./Handlers/Air/OversizeNotifyExecutive";
-import { linbisFetch } from "../../services/linbisFetch";
+// Linbis removido: cotizaciones México usan R2/Mongo
 import {
   fetchExpandedRoutes,
   fetchCountryPorts,
@@ -189,8 +188,7 @@ function QuoteLCL({
   isEjecutivoMode = false,
   isSimulationMode = false,
 }: QuoteLCLProps = {}) {
-  const { accessToken, refreshAccessToken } = useOutletContext<OutletContext>();
-  const token = accessToken;
+  // México: cotizaciones sin Linbis (solo JWT del portal)
   const {
     user,
     token: jwtToken,
@@ -1807,59 +1805,24 @@ function QuoteLCL({
     setResponse(null);
 
     try {
-      // Obtener el ID máximo de cotización ANTES de crear la nueva
-      let previousMaxId = 0;
-      try {
-        const preRes = await linbisFetch(
-          `https://api.linbis.com/Quotes?ConsigneeName=${encodeURIComponent(effectiveUsername || "")}`,
-          {
-            headers: {
-              Accept: "application/json",
-            },
-          },
-          accessToken,
-          refreshAccessToken,
-        );
-        if (preRes.ok) {
-          const preData = await preRes.json();
-          if (Array.isArray(preData)) {
-            previousMaxId = Math.max(
-              0,
-              ...preData.map((q: any) => Number(q.id) || 0),
-            );
-          }
-          console.log("[QuoteLCL] ID máximo ANTES de crear:", previousMaxId);
-        }
-      } catch (e) {
-        console.warn("[QuoteLCL] No se pudo obtener cotizaciones previas:", e);
-      }
-
-      const payload = getTestPayload();
-
-      const res = await linbisFetch(
-        "https://api.linbis.com/Quotes/create",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
+      const nextRes = await fetch("/api/quotes/next-number", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+          "Content-Type": "application/json",
+          "x-owner-username": effectiveUsername || "",
         },
-        accessToken,
-        refreshAccessToken,
-      );
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
+        body: JSON.stringify({ ownerUsername: effectiveUsername || "" }),
+      });
+      if (!nextRes.ok) {
+        const txt = await nextRes.text();
+        throw new Error(`No se pudo generar folio: ${txt}`);
       }
+      const nextData = await nextRes.json();
+      const quoteNumber = String(nextData?.number || "").trim();
+      if (!quoteNumber) throw new Error("No se recibió folio de cotización");
 
-      const data = await res.json();
-      console.log(
-        "[QuoteLCL] Respuesta CREATE de Linbis:",
-        JSON.stringify(data),
-      );
-      setResponse(data);
+      setResponse({ quoteNumber });
 
       // Registrar auditoría (solo en modo ejecutivo)
       if (isEjecutivoMode) {
@@ -1897,7 +1860,7 @@ function QuoteLCL({
       });
 
       // Generar PDF después de cotización exitosa
-      await generateQuotePDF(tipoAccion, data, previousMaxId);
+      await generateQuotePDF(tipoAccion, quoteNumber);
       setBtnPhase("check");
     } catch (err: any) {
       setBtnPhase("idle");
@@ -1909,8 +1872,7 @@ function QuoteLCL({
 
   const generateQuotePDF = async (
     tipoAccionParam: "cotizacion" | "operacion",
-    apiResponse?: any,
-    previousMaxId?: number,
+    quoteNumberParam: string,
   ) => {
     try {
       if (!rutaSeleccionada) {
@@ -2109,61 +2071,7 @@ function QuoteLCL({
         0,
       );
 
-      // -- 1. Obtener el quoteNumber real de Linbis ANTES de renderizar el PDF --
-      let quoteNumber = "";
-      try {
-        console.log(
-          "[QuoteLCL] Buscando cotización recién creada (id mayor a",
-          previousMaxId,
-          ")...",
-        );
-        // Polling con backoff: intenta hasta 3 veces (500ms ? 1000ms ? 1000ms)
-        const pollDelays = [500, 1000, 1000];
-        for (
-          let attempt = 0;
-          attempt < pollDelays.length && !quoteNumber;
-          attempt++
-        ) {
-          await new Promise((r) => setTimeout(r, pollDelays[attempt]));
-          const linbisRes = await linbisFetch(
-            `https://api.linbis.com/Quotes?ConsigneeName=${encodeURIComponent(effectiveUsername || "")}`,
-            {
-              headers: {
-                Accept: "application/json",
-              },
-            },
-            accessToken,
-            refreshAccessToken,
-          );
-          if (linbisRes.ok) {
-            const linbisData = await linbisRes.json();
-            if (Array.isArray(linbisData) && linbisData.length > 0) {
-              const newestQuote = linbisData.reduce(
-                (max: any, q: any) =>
-                  (Number(q.id) || 0) > (Number(max.id) || 0) ? q : max,
-                linbisData[0],
-              );
-              console.log(
-                `[QuoteLCL] Intento ${attempt + 1}: number=${newestQuote.number}, id=${newestQuote.id}`,
-              );
-              if (Number(newestQuote.id) > (previousMaxId || 0)) {
-                quoteNumber = newestQuote.number;
-                console.log(
-                  `? [QuoteLCL] NUEVA COTIZACIÓN CONFIRMADA: ${quoteNumber}`,
-                );
-              }
-            }
-          }
-        }
-        if (!quoteNumber) {
-          console.warn(
-            "[QuoteLCL] No se encontró cotización con id mayor a",
-            previousMaxId,
-          );
-        }
-      } catch (e) {
-        console.warn("[QuoteLCL] Error obteniendo quoteNumber:", e);
-      }
+      const quoteNumber = String(quoteNumberParam || "").trim();
 
       // Registrar número de cotización en behavior tracking y notificar si sin tarifa
       if (quoteNumber) {
@@ -2399,43 +2307,84 @@ function QuoteLCL({
 
         const pdfBase64 = await generatePDFBase64(pdfElement);
 
-        // Subir el PDF a MongoDB (rutas recurrentes y no recurrentes)
+        // Guardar cotización México (JSON + PDF)
         if (pdfBase64 && quoteNumber) {
+          const quoteJson = {
+            number: quoteNumber,
+            createdAt: new Date().toISOString(),
+            validUntil: new Date(
+              Date.now() + 30 * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+            origin: rutaSeleccionada.pol,
+            destination: rutaSeleccionada.pod,
+            modeOfTransportation: "lcl",
+            transitDays: null,
+            route: {
+              carrier: sinTarifa ? undefined : rutaSeleccionada?.operador,
+              transitTime: sinTarifa ? undefined : rutaSeleccionada?.ttAprox,
+              frequency: sinTarifa ? undefined : rutaSeleccionada?.frecuencia,
+              service: sinTarifa ? undefined : rutaSeleccionada?.servicio,
+              company: sinTarifa ? undefined : rutaSeleccionada?.operador,
+              validUntil: rutaSeleccionada?.validUntil,
+            },
+            cargo: overallDimsAndWeight
+              ? {
+                  overall: true,
+                  totals: { totalWeightKg, totalVolume, totalVolumeWeight },
+                  pieces: overallPiecesData,
+                }
+              : { overall: false, pieces: piecesData },
+            customerInput: {
+              incoterm,
+              description,
+              pickupFromAddress:
+                incoterm === "EXW" ? pickupFromAddress : undefined,
+              deliveryToAddress:
+                incoterm === "EXW" ? deliveryToAddressDerived : undefined,
+              ...(ultimaMillaAplicaCobro
+                ? {
+                    ultimaMilla: true,
+                    ultimaMillaDireccion,
+                    ultimaMillaZona: ultimaMillaVespucioZone,
+                  }
+                : {}),
+            },
+            financial: {
+              currency: "USD",
+              amount: showPendingQuote ? 0 : Number(totalAmount.toFixed(2)),
+              display: showPendingQuote
+                ? "PENDIENTE"
+                : `USD ${Number(totalAmount.toFixed(2)).toFixed(2)}`,
+            },
+            breakdown: {
+              charges: finalPdfCharges,
+              totalCharges: Number(totalCharges.toFixed(2)),
+            },
+          };
+
           try {
-            const bodyPayload: any = {
-              quoteNumber,
-              nombreArchivo: filename,
-              contenidoBase64: pdfBase64,
-              tipoServicio: "LCL",
-              origen: rutaSeleccionada.pol,
-              destino: rutaSeleccionada.pod,
-            };
-
-            if (
-              isEjecutivoMode &&
-              (user?.username === "Ejecutivo" || isPricingRole) &&
-              clienteSeleccionado
-            ) {
-              bodyPayload.usuarioId = clienteSeleccionado.username;
-              bodyPayload.subidoPor = clienteSeleccionado.email;
-            }
-
-            const uploadRes = await fetch("/api/quote-pdf/upload", {
+            const saveRes = await fetch("/api/quotes/save", {
               method: "POST",
               headers: {
                 Authorization: `Bearer ${jwtToken}`,
                 "Content-Type": "application/json",
+                "x-owner-username": effectiveUsername || "",
               },
-              body: JSON.stringify(bodyPayload),
+              body: JSON.stringify({
+                ownerUsername: effectiveUsername || "",
+                number: quoteNumber,
+                quoteJson,
+                pdfBase64,
+              }),
             });
-            const uploadData = await uploadRes.json();
-            console.log(
-              "[QuoteLCL] PDF guardado en MongoDB:",
-              uploadRes.status,
-              uploadData,
-            );
-          } catch (uploadErr) {
-            console.error("Error subiendo PDF a MongoDB:", uploadErr);
+            if (!saveRes.ok) {
+              console.error(
+                "[QuoteLCL] Error guardando cotización:",
+                await saveRes.text(),
+              );
+            }
+          } catch (e) {
+            console.error("[QuoteLCL] Error guardando cotización:", e);
           }
         }
 
@@ -2492,7 +2441,7 @@ function QuoteLCL({
             currency: rutaSeleccionada.currency,
             total: showPendingQuote ? "PENDIENTE" : total,
             tipoAccion: tipoAccionParam,
-            quoteId: (apiResponse || response)?.quote?.id,
+            quoteId: undefined,
             agente: rutaSeleccionada.operador || undefined,
             quoteNumber: quoteNumber || undefined,
           }),
@@ -2506,7 +2455,7 @@ function QuoteLCL({
       if (!sinTarifa && !isSimulationMode && quoteNumber) {
         scheduleOperationModal({
           quoteNumber,
-          quoteId: (apiResponse || response)?.quote?.id,
+          quoteId: undefined,
           validUntil: rutaSeleccionada.validUntil ?? null,
           emailContext: {
             origen: rutaSeleccionada.pol,
@@ -4905,7 +4854,7 @@ function QuoteLCL({
                     btnPhase !== "idle" ||
                     loading ||
                     authLoading ||
-                    !accessToken ||
+                    !jwtToken ||
                     !incoterm ||
                     (isSimulationMode && !hasSimulationOceanRate) ||
                     oversizeErrorLCL ||
