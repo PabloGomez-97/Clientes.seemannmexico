@@ -18,6 +18,7 @@ const isMobileViewport = () =>
 function UserLayout() {
   const { t } = useTranslation();
   const { accessToken, loading, error, refreshAccessToken } = useLinbisToken();
+  void error; // disponible para vistas Linbis; el layout no bloquea el portal
   const location = useLocation();
   const mainRef = useRef<HTMLDivElement>(null);
   const [isMobile, setIsMobile] = useState(isMobileViewport);
@@ -162,54 +163,12 @@ function UserLayout() {
   }*/
   }
 
-  // Mostrar error si falla
-  if (error) {
-    return (
-      <div className="container py-5">
-        <div className="row justify-content-center">
-          <div className="col-md-6">
-            <div
-              style={{
-                backgroundColor: "white",
-                borderRadius: "12px",
-                padding: "40px",
-                boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  width: "64px",
-                  height: "64px",
-                  backgroundColor: "#fee2e2",
-                  borderRadius: "50%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto 24px",
-                }}
-              >
-                <svg width="32" height="32" fill="#dc2626" viewBox="0 0 16 16">
-                  <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
-                  <path d="M7.002 11a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM7.1 4.995a.905.905 0 1 1 1.8 0l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 4.995z" />
-                </svg>
-              </div>
-              <h4 style={{ color: "#1f2937", marginBottom: "12px" }}>
-                {t("home.userLayout.connectionError")}
-              </h4>
-              <p style={{ color: "#6b7280", marginBottom: "24px" }}>{error}</p>
-              <button
-                className="btn btn-primary"
-                onClick={() => window.location.reload()}
-              >
-                {t("home.userLayout.retry")}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  /*
+   * México: no bloquear el portal completo si Linbis falla.
+   * Las cotizaciones van por R2/Mongo; Linbis solo afecta envíos/reportería.
+   * El error queda en estado para vistas que sí lo necesiten vía Outlet context.
+   */
+  // if (error) { ... hard block removed ... }
 
   return (
     <ChatbotProvider>

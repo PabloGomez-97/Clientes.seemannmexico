@@ -89,7 +89,7 @@ function AdminLayout() {
     });
   };
 
-  // Mostrar error si falla
+  // Mostrar error si falla (tras re-auth automática aún puede fallar)
   if (error) {
     return (
       <div className="container py-5">
@@ -125,6 +125,10 @@ function AdminLayout() {
                 Error de Conexión
               </h4>
               <p style={{ color: "#6b7280", marginBottom: "24px" }}>{error}</p>
+              <p style={{ color: "#9ca3af", fontSize: 13, marginBottom: 24 }}>
+                Si el refresh token de Linbis expiró, el servidor intentará
+                re-autenticar solo. Espera ~1 min y reintenta.
+              </p>
               <button
                 className="btn btn-primary"
                 onClick={() => window.location.reload()}

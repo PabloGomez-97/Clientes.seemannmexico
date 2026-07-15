@@ -1,9 +1,13 @@
 /**
  * Persistencia del token Linbis en MongoDB (MONGODB_URI del proyecto).
  * Usado por: /api/linbis-token, cron renew, init-linbis-token y api/index.ts.
+ *
+ * Si el refresh_token expiró (AADB2C invalid_grant), re-autentica con
+ * LINBIS_EMAIL / LINBIS_PASSWORD vía LinbisAuthService y guarda un RT nuevo.
  */
 import mongoose from 'mongoose';
 import { LinbisToken } from '../models/LinbisToken.js';
+import LinbisAuthService from './linbisAuthService.js';
 
 const LINBIS_TOKEN_DOC_ID = 'linbis_token';
 const ACCESS_TOKEN_BUFFER_MS = 5 * 60 * 1000;
@@ -18,6 +22,16 @@ async function ensureDbConnection(): Promise<void> {
   if (mongoose.connection.readyState === 1) return;
   const uri = requireEnv('MONGODB_URI');
   await mongoose.connect(uri, { bufferCommands: false });
+}
+
+function isExpiredGrantError(errorText: string): boolean {
+  const t = errorText.toLowerCase();
+  return (
+    t.includes('invalid_grant') ||
+    t.includes('aadb2c90080') ||
+    t.includes('grant has expired') ||
+    t.includes('re-authenticate')
+  );
 }
 
 export async function saveLinbisRefreshToken(refreshToken: string): Promise<void> {
@@ -38,11 +52,53 @@ export async function saveLinbisRefreshToken(refreshToken: string): Promise<void
   console.log(`[linbisTokenStore] Refresh token guardado en MongoDB (${dbName})`);
 }
 
+async function reauthenticateAndPersist(): Promise<string> {
+  const email = process.env.LINBIS_EMAIL;
+  const password = process.env.LINBIS_PASSWORD;
+  const clientId = process.env.LINBIS_CLIENT_ID;
+
+  if (!email || !password || !clientId) {
+    throw new Error(
+      'Refresh token expirado y faltan LINBIS_EMAIL/LINBIS_PASSWORD/LINBIS_CLIENT_ID para re-autenticar',
+    );
+  }
+
+  console.warn(
+    '[linbisTokenStore] Refresh token inválido/expirado — re-autenticando con credenciales…',
+  );
+
+  const tokens = await LinbisAuthService.getNewRefreshToken({
+    email,
+    password,
+    clientId,
+  });
+
+  const now = Date.now();
+  await ensureDbConnection();
+  await LinbisToken.findByIdAndUpdate(
+    LINBIS_TOKEN_DOC_ID,
+    {
+      refresh_token: tokens.refresh_token,
+      access_token: tokens.access_token,
+      access_token_expiry: now + tokens.expires_in * 1000,
+      updated_at: new Date(),
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
+
+  console.log('[linbisTokenStore] Re-autenticación OK — tokens guardados en MongoDB');
+  return tokens.access_token;
+}
+
 export async function getLinbisAccessToken(): Promise<string> {
   await ensureDbConnection();
 
   const tokenDoc = await LinbisToken.findById(LINBIS_TOKEN_DOC_ID).exec();
   if (!tokenDoc?.refresh_token) {
+    // Sin RT: intentar login completo si hay credenciales
+    if (process.env.LINBIS_EMAIL && process.env.LINBIS_PASSWORD && process.env.LINBIS_CLIENT_ID) {
+      return reauthenticateAndPersist();
+    }
     throw new Error(
       'No refresh token found in database. Please initialize it first.',
     );
@@ -83,6 +139,11 @@ export async function getLinbisAccessToken(): Promise<string> {
   if (!response.ok) {
     const errorText = await response.text();
     console.error('[linbisTokenStore] Failed to refresh:', errorText);
+
+    if (isExpiredGrantError(errorText)) {
+      return reauthenticateAndPersist();
+    }
+
     throw new Error('Failed to refresh Linbis token');
   }
 
