@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import CotizadorAereo from "../quotes/QuoteAIR";
@@ -6,7 +6,34 @@ import CotizadorFCL from "../quotes/QuoteFCL";
 import CotizadorLCL from "../quotes/QuoteLCL";
 import CotizadorLastMile from "../quotes/QuoteLASTMILE";
 import ActivityBar from "./ActivityBar";
+import {
+  AirCotizadorSidebarProvider,
+  AirCotizadorSidebarSlot,
+  useAirCotizadorSidebarOptional,
+} from "../quotes/Handlers/Air/AirCotizadorSidebarContext";
 import "./styles/Cotizador.css";
+
+function CotizadorFormLayout({ children }: { children: React.ReactNode }) {
+  const sidebarCtx = useAirCotizadorSidebarOptional();
+  const hasSidebar = sidebarCtx?.hasSidebar ?? false;
+
+  return (
+    <div
+      className={`cotizador-container cotizador-container--form${hasSidebar ? " cotizador-container--with-sidebar" : ""}`}
+    >
+      <div
+        className={`cotizador-split${hasSidebar ? " cotizador-split--active" : ""}`}
+      >
+        <div className="cotizador-split__main">
+          <div className="cotizador-quote-container cotizador-quote-container--form">
+            {children}
+          </div>
+        </div>
+        <AirCotizadorSidebarSlot />
+      </div>
+    </div>
+  );
+}
 
 type TipoCotizacion = "AEREO" | "FCL" | "LCL" | "LASTMILE" | null;
 
@@ -32,6 +59,7 @@ const Cotizador: React.FC = () => {
   const [preselectedData, setPreselectedData] = useState<ItineraryState | null>(
     null,
   );
+  const quoteAbandonRef = useRef<(() => void) | null>(null);
 
   // Detectar si viene con datos pre-seleccionados desde ItineraryFinder
   useEffect(() => {
@@ -43,12 +71,24 @@ const Cotizador: React.FC = () => {
     }
   }, [location.state, navigate, location.pathname]);
 
-  const handleSeleccionTipo = (tipo: TipoCotizacion) => {
+  // Auto-seleccionar tipo desde query param (?tipo=AEREO|FCL|LCL|LASTMILE)
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tipo = params.get("tipo")?.toUpperCase();
+    const valid = ["AEREO", "FCL", "LCL", "LASTMILE"] as const;
+    if (valid.includes(tipo as (typeof valid)[number])) {
+      setTipoCotizacion(tipo as Exclude<TipoCotizacion, null>);
+      navigate(location.pathname, { replace: true });
+    }
+  }, [location.search, navigate, location.pathname]);
+
+  const handleSeleccionTipo = (tipo: Exclude<TipoCotizacion, null>) => {
     setTipoCotizacion(tipo);
     setPreselectedData(null);
   };
 
   const handleVolver = () => {
+    quoteAbandonRef.current?.();
     setTipoCotizacion(null);
     setPreselectedData(null);
   };
@@ -60,13 +100,11 @@ const Cotizador: React.FC = () => {
         <ActivityBar />
         <div className="cotizador-page">
           <div className="cotizador-container">
-            {/* Header */}
             <div className="cotizador-header">
               <h1>{t("home.cotizador.title")}</h1>
               <p>{t("home.cotizador.subtitle")}</p>
             </div>
 
-            {/* Service Cards */}
             <div className="cotizador-grid">
               {serviceTypes.map(({ key, icon }) => {
                 const k = key.toLowerCase();
@@ -123,11 +161,20 @@ const Cotizador: React.FC = () => {
     <>
       <ActivityBar />
       <div className="cotizador-page cotizador-page--form">
-        <div className="cotizador-container cotizador-container--form">
-          <div className="cotizador-quote-container cotizador-quote-container--form">
+        <button
+          type="button"
+          className="btn btn-link cotizador-back-btn"
+          onClick={handleVolver}
+          style={{ margin: "12px 0 0 16px" }}
+        >
+          ← {t("home.cotizador.back", { defaultValue: "Volver" })}
+        </button>
+        <AirCotizadorSidebarProvider>
+          <CotizadorFormLayout>
             {tipoCotizacion === "AEREO" && (
               <CotizadorAereo
                 key="aereo"
+                abandonRef={quoteAbandonRef}
                 preselectedOrigin={preselectedData?.origin}
                 preselectedDestination={preselectedData?.destination}
               />
@@ -135,6 +182,7 @@ const Cotizador: React.FC = () => {
             {tipoCotizacion === "FCL" && (
               <CotizadorFCL
                 key="fcl"
+                abandonRef={quoteAbandonRef}
                 preselectedPOL={preselectedData?.origin}
                 preselectedPOD={preselectedData?.destination}
               />
@@ -142,6 +190,7 @@ const Cotizador: React.FC = () => {
             {tipoCotizacion === "LCL" && (
               <CotizadorLCL
                 key="lcl"
+                abandonRef={quoteAbandonRef}
                 preselectedPOL={preselectedData?.origin}
                 preselectedPOD={preselectedData?.destination}
               />
@@ -149,12 +198,13 @@ const Cotizador: React.FC = () => {
             {tipoCotizacion === "LASTMILE" && (
               <CotizadorLastMile
                 key="lastmile"
+                abandonRef={quoteAbandonRef}
                 preselectedOrigin={preselectedData?.origin}
                 preselectedDestination={preselectedData?.destination}
               />
             )}
-          </div>
-        </div>
+          </CotizadorFormLayout>
+        </AirCotizadorSidebarProvider>
       </div>
     </>
   );

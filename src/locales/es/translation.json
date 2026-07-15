@@ -92,7 +92,9 @@
       "item1": "Nueva ruta Asia‑América acelera entregas",
       "item2": "Puertos digitales reducen demoras",
       "item3": "Robots en almacenes: picking 24/7",
-      "item4": "Transporte verde: biocombustibles en aviación"
+      "item4": "Transporte verde: biocombustibles en aviación",
+      "viewAll": "Ver todas las novedades",
+      "readMore": "Leer más"
     },
     "newsletter": {
       "title": "Suscríbete para obtener las últimas noticias y tarifas",
@@ -206,7 +208,9 @@
       "financial": "Financiera",
       "operational": "Operacional",
       "news": "Novedades",
-      "novedades": "Novedades"
+      "novedades": "Novedades",
+      "settings": "Configuración",
+      "help": "Ayuda"
     },
     "userLayout": {
       "linbisTokenError": "No se pudo obtener el token de Linbis",
@@ -291,6 +295,55 @@
       "comparison": {
         "title": "¿Necesitas ayuda para elegir?"
       }
+    },
+    "welcome": {
+      "greeting": "Hola, {{name}}",
+      "account": "Cuenta {{account}}",
+      "kpiQuotes": "Cotizaciones",
+      "kpiShipments": "Embarques activos",
+      "kpiDocuments": "Documentos"
+    },
+    "ejecutivo": {
+      "eyebrow": "Tu equipo",
+      "title": "Tu ejecutivo comercial",
+      "role": "Ejecutivo comercial",
+      "sendMessage": "Enviar mensaje",
+      "call": "Llamar"
+    },
+    "servicesSection": {
+      "eyebrow": "Cotizaciones",
+      "title": "Cotiza por modalidad"
+    },
+    "slideDynamic": {
+      "title": "Tienes {{count}} embarques en tránsito",
+      "subtitle": "Consulta el estado en tiempo real de tus operaciones activas.",
+      "button": "Ver mis embarques"
+    },
+    "hero": {
+      "prevSlide": "Slide anterior",
+      "nextSlide": "Slide siguiente",
+      "goToSlide": "Ir al slide {{n}}"
+    },
+    "quickActions": {
+      "title": "Acciones rápidas",
+      "quote": {
+        "title": "Nueva cotización",
+        "desc": "Cotiza tu embarque en segundos"
+      },
+      "track": {
+        "title": "Rastrear envío"
+      },
+      "myQuotes": {
+        "title": "Mis cotizaciones",
+        "desc": "Revisa y gestiona tus cotizaciones"
+      },
+      "documents": {
+        "title": "Mis documentos",
+        "desc": "Accede a tus archivos operacionales"
+      },
+      "trackings": {
+        "title": "Mis embarques"
+      }
     }
   },
   "footer": {
@@ -304,7 +357,8 @@
           "features": "Noticias y Novedades",
           "pricing": "Tarifarios",
           "integrations": "Contenedores",
-          "changelog": "Contáctenos"
+          "changelog": "Contáctenos",
+          "reportError": "¿Encontraste un error?"
         }
       },
       "resources": {
@@ -593,9 +647,9 @@
     "filters": "Filtros",
     "exportCSV": "Exportar CSV",
     "refresh": "Actualizar",
-    "loading": "Cargando\u2026",
-    "loadingData": "Cargando datos\u2026",
-    "loadingMore": "Cargando mas\u2026",
+    "loading": "Cargando…",
+    "loadingData": "Cargando datos…",
+    "loadingMore": "Cargando mas…",
     "period": "Periodo:",
     "clear": "Limpiar",
     "error": "Error:",
@@ -881,7 +935,24 @@
     "repeatNoRoutes": "No se puede repetir esta cotización porque no hay rutas disponibles actualmente.",
     "repeatNotPortal": "Solo las cotizaciones creadas desde el portal pueden ser repetidas.",
     "repeatNavigating": "Redirigiendo al cotizador...",
-    "unknownError": "Error desconocido"
+    "unknownError": "Error desconocido",
+    "resendQuote": "Reenvío de cotización",
+    "resendModalTitle": "Reenvío de cotización",
+    "resendModalSubtitle": "Ingresa hasta 5 correos. Se enviará el PDF adjunto.",
+    "resendModalEmailsLabel": "Correos electrónicos",
+    "resendAddRecipients": "Agregar destinatarios",
+    "resendSendPdf": "Enviar PDF",
+    "resendSending": "Enviando...",
+    "resendMaxEmails": "Máximo 5 correos",
+    "resendEmailPlaceholder": "Correo {{index}}",
+    "resendAddEmail": "Agregar correo",
+    "resendRemoveEmail": "Quitar correo",
+    "resendSuccess": "PDF enviado correctamente.",
+    "resendErrorNoEmails": "Debes ingresar al menos un correo electrónico.",
+    "resendErrorMaxEmails": "Máximo 5 correos electrónicos.",
+    "resendErrorInvalid": "El correo {{email}} no es válido.",
+    "resendErrorDuplicate": "No repitas correos electrónicos.",
+    "resendErrorGeneric": "No se pudo enviar el correo. Intenta nuevamente."
   },
   "proveedor": {
     "login": {
@@ -1066,5 +1137,398 @@
     "errorPayload": "No se pudo generar el payload de la cotización.",
     "successConNumero": "Cotización {{numero}} generada exitosamente.",
     "successSinNumero": "Cotización generada exitosamente (descargando PDF)."
+  },
+  "promesas": {
+    "hero": {
+      "eyebrow": "Seemann Group",
+      "title": "Tu carga, nuestra promesa",
+      "subtitle": "Conoce quiénes somos, en qué nos comprometemos contigo y cómo trabajamos en cada modalidad logística."
+    },
+    "tabs": {
+      "aria": "Secciones de promesas",
+      "company": "Nuestra empresa",
+      "commitments": "Compromisos",
+      "services": "Por modalidad"
+    },
+    "disclaimer": "Los plazos, tarifas y condiciones pueden variar según operación, regulación y factores externos. Esta información tiene carácter orientativo y no constituye garantía de un resultado específico.",
+    "company": {
+      "storyHeadline": "Más de tres décadas conectando negocios con el mundo",
+      "history": {
+        "title": "Historia",
+        "p1": "Seemann Group nace como resultado de una vasta experiencia de sus fundadores en el mercado de los seguros, reaseguros y de logística internacional, con más de 35 años de desarrollo.",
+        "p2": "Su fortaleza consiste en la entrega de asesorías profesionales y técnicas a sus clientes, evaluando siempre la mejor alternativa para el cumplimiento de sus objetivos.",
+        "p3": "A través de su trayectoria, se han desarrollado herramientas útiles y versátiles para diferentes tamaños de empresas, que nos permiten un trabajo eficaz en pequeñas, medianas y grandes empresas de Latinoamérica, recientemente en Estados Unidos y próximamente en Europa."
+      },
+      "mission": {
+        "title": "Misión",
+        "p1": "Seemann Group es una empresa dedicada al transporte internacional de carga y freight forwarding, con una fuerte vocación de servicio. Fundamentamos nuestra propuesta comercial en la satisfacción de nuestros clientes respecto del trabajo otorgado.",
+        "p2": "Somos una organización flexible y preparada para enfrentar los cambios del mercado, con profesionales de diversas áreas orientados al servicio, al trabajo bajo presión y al cambio."
+      },
+      "vision": {
+        "title": "Visión",
+        "p1": "Buscamos ser una empresa sólida a nivel mundial, con una expansión internacional relevante y mayor cobertura en economías estratégicas.",
+        "p2": "A nivel interno, seguimos desarrollando procesos de mejoramiento continuo que nos permiten evaluar y optimizar la calidad de nuestro servicio."
+      },
+      "values": {
+        "title": "Valores",
+        "intro": "Dentro de los valores corporativos de nuestra empresa se encuentran:",
+        "empathy": {
+          "title": "Empatía y orientación al cliente",
+          "description": "Nuestro principal objetivo es entregar un servicio profesional de alta calidad, donde prime la satisfacción del cliente respecto del trabajo realizado."
+        },
+        "personalization": {
+          "title": "Personalización",
+          "description": "Conocimiento y empatía con nuestros clientes, desarrollando soluciones personalizadas de alto impacto."
+        },
+        "responsibility": {
+          "title": "Responsabilidad",
+          "description": "Con el manejo de la información, los compromisos adquiridos y el tratamiento de las operaciones en su globalidad."
+        },
+        "sincerity": {
+          "title": "Sinceridad y transparencia",
+          "description": "Compromiso con la entrega de información fidedigna y de manera oportuna."
+        },
+        "commitment": {
+          "title": "Compromiso y proactividad",
+          "description": "En la búsqueda de soluciones que aporten optimización en las operaciones de nuestros clientes."
+        },
+        "flexibility": {
+          "title": "Flexibilidad",
+          "description": "Ser una organización orientada a los cambios, con pronta adaptación a las necesidades del cliente y del entorno."
+        }
+      }
+    },
+    "commitments": {
+      "intro": "Trabajamos para que ganes velocidad y eficiencia en cada envío. Estos son los pilares que guían nuestra relación contigo:",
+      "clientTitle": "Nuestro compromiso contigo",
+      "pillars": {
+        "global": {
+          "title": "Red global propia",
+          "desc": "Presencia directa en varios países: menos intermediarios, más rapidez en la coordinación."
+        },
+        "anticipate": {
+          "title": "Anticipación",
+          "desc": "Trabajamos para identificar riesgos documentales y aduaneros antes de que afecten tu carga."
+        },
+        "experience": {
+          "title": "35+ años de experiencia",
+          "desc": "Rutas probadas, procesos consolidados y soluciones express cuando las necesitas."
+        },
+        "support": {
+          "title": "Respuesta ágil",
+          "desc": "Atención orientada a resolver urgencias operativas con el equipo disponible."
+        }
+      },
+      "clientItems": {
+        "item1": "Asesorarte con criterio profesional para elegir la alternativa logística más adecuada a tus objetivos.",
+        "item2": "Mantener comunicación clara sobre el avance de tus operaciones y la documentación requerida.",
+        "item3": "Gestionar cada embarque con rigor, cuidando la información confidencial y los compromisos acordados.",
+        "item4": "Buscar condiciones comerciales competitivas y transparentes, negociadas con carriers y aliados.",
+        "item5": "Acompañarte con un ejecutivo dedicado que conozca tu operación y pueda responder con agilidad."
+      }
+    },
+    "services": {
+      "pillsAria": "Modalidades de servicio",
+      "promisesTitle": "Cómo trabajamos en esta modalidad",
+      "modalities": {
+        "sea": "Marítimo",
+        "air": "Aéreo",
+        "land": "Terrestre",
+        "customs": "Aduanas",
+        "multimodal": "Multimodal"
+      },
+      "sea": {
+        "hero": {
+          "title": "Transporte marítimo",
+          "subtitle": "Negociación directa con navieras para tarifas competitivas y mejores condiciones: días libres, drop-off y emisión oportuna de documentos."
+        },
+        "features": {
+          "f1": {
+            "title": "Tarifas competitivas",
+            "desc": "Negociación directa con navieras para obtener mejores condiciones comerciales y días libres."
+          },
+          "f2": {
+            "title": "Cobertura mundial",
+            "desc": "Posicionamiento en puertos principales y secundarios con agentes certificados."
+          },
+          "f3": {
+            "title": "FCL y LCL",
+            "desc": "Soluciones para contenedores completos y carga consolidada con flexibilidad operativa."
+          }
+        },
+        "overview": "Nos comprometemos a una negociación rigurosa sobre contratos marítimos, buscando tarifas competitivas y condiciones favorables en días libres, drop-off y emisión de documentos en destino.",
+        "promises": {
+          "item1": "Coordinar FCL, LCL y cargas especiales según el volumen y tipo de mercancía.",
+          "item2": "Informarte sobre hitos relevantes del embarque y la documentación asociada.",
+          "item3": "Trabajar con nuestra red en puertos de origen y destino que requieras."
+        }
+      },
+      "air": {
+        "hero": {
+          "title": "Transporte aéreo",
+          "subtitle": "Soluciones express para cargas urgentes, de alto valor o con ventanas de tiempo críticas, con acceso a las principales aerolíneas de carga."
+        },
+        "features": {
+          "f1": {
+            "title": "Velocidad",
+            "desc": "Tiempos de tránsito reducidos para cargas urgentes y de alto valor."
+          },
+          "f2": {
+            "title": "Red global",
+            "desc": "Acceso a aerolíneas de carga y rutas directas en los principales hubs."
+          },
+          "f3": {
+            "title": "Carga especial",
+            "desc": "Experiencia en pharma, perecederos, peligrosas y sobredimensionadas."
+          }
+        },
+        "overview": "Evaluamos ruta, aerolínea y condiciones según la urgencia y características de tu carga, priorizando opciones que equilibren tiempo, costo y seguridad operativa.",
+        "promises": {
+          "item1": "Revisar requisitos documentales y regulatorios antes del embarque.",
+          "item2": "Proponer alternativas de ruta cuando existan restricciones de peso, medida o producto.",
+          "item3": "Mantener visibilidad del estado del envío mientras la información esté disponible."
+        }
+      },
+      "land": {
+        "hero": {
+          "title": "Transporte terrestre",
+          "subtitle": "Alianzas con transportistas certificados para recogida y despacho con servicio ágil, seguro y seguimiento cuando esté disponible."
+        },
+        "features": {
+          "f1": {
+            "title": "Cobertura regional",
+            "desc": "Alianzas con transportistas locales en Sudamérica y Norteamérica."
+          },
+          "f2": {
+            "title": "Carga segura",
+            "desc": "Protocolos de seguridad y seguros de carga con aliados certificados."
+          },
+          "f3": {
+            "title": "Entrega oportuna",
+            "desc": "Coordinación proactiva para cumplir los plazos acordados."
+          }
+        },
+        "overview": "Coordinamos recogida y despacho en operaciones que involucran tránsito terrestre, buscando condiciones óptimas de servicio y entrega oportuna.",
+        "promises": {
+          "item1": "Adaptar soluciones LTL o FTL según volumen, ruta y plazos.",
+          "item2": "Coordinar la documentación necesaria para el tránsito terrestre.",
+          "item3": "Informarte sobre el avance del transporte cuando el aliado reporte actualizaciones."
+        }
+      },
+      "customs": {
+        "hero": {
+          "title": "Servicio de aduanas",
+          "subtitle": "Gestión aduanera con equipos especializados para importación, exportación y regímenes especiales en Chile y en coordinación internacional."
+        },
+        "features": {
+          "f1": {
+            "title": "Asesoría técnica",
+            "desc": "Orientación en requisitos documentales y normativos aplicables a tu operación."
+          },
+          "f2": {
+            "title": "Despacho integral",
+            "desc": "Gestión de trámites aduaneros con seguimiento del avance."
+          },
+          "f3": {
+            "title": "Cumplimiento",
+            "desc": "Enfoque en transparencia y correcta declaración de la mercancía."
+          }
+        },
+        "overview": "Te acompañamos en los trámites aduaneros con equipos que conocen la normativa vigente, buscando agilizar el despacho dentro del marco legal aplicable.",
+        "promises": {
+          "item1": "Revisar documentación previa al arribo o embarque cuando corresponda.",
+          "item2": "Informarte sobre el estado del trámite aduanero de forma oportuna.",
+          "item3": "Coordinar con transporte y bodega para una operación integrada."
+        }
+      },
+      "multimodal": {
+        "hero": {
+          "title": "Servicio multimodal",
+          "subtitle": "Diseño de rutas que combinan marítimo, aéreo y terrestre bajo una sola coordinación para optimizar tiempos y costos."
+        },
+        "features": {
+          "f1": {
+            "title": "Ruta integral",
+            "desc": "Un solo interlocutor para toda la cadena logística."
+          },
+          "f2": {
+            "title": "Optimización",
+            "desc": "Combinación de modalidades según costo, plazo y tipo de carga."
+          },
+          "f3": {
+            "title": "Visibilidad",
+            "desc": "Seguimiento centralizado de cada tramo de la operación."
+          }
+        },
+        "overview": "Diseñamos soluciones que integran distintas modalidades, centralizando la coordinación para simplificar tu operación de comercio exterior.",
+        "promises": {
+          "item1": "Proponer esquemas multimodales acordes a tu origen, destino y plazos.",
+          "item2": "Coordinar transbordos y conexiones entre modalidades con anticipación.",
+          "item3": "Mantener un punto de contacto único durante toda la operación."
+        }
+      }
+    },
+    "cta": {
+      "quote": "Solicitar cotización",
+      "tracking": "Rastrear envíos"
+    }
+  },
+  "contenedores": {
+    "title": "Tipos de contenedor",
+    "subtitle": "Referencia técnica de medidas, capacidades y pesos máximos según estándares ISO habituales en transporte marítimo.",
+    "disclaimer": "Las medidas y pesos pueden variar según naviera, fabricante y año de construcción. Use esta información como referencia operativa.",
+    "imageHint": "Puedes subir las imágenes de cada contenedor en R2 bajo la ruta /contenedores/{tipo}.png (ej: /contenedores/20gp.png).",
+    "labels": {
+      "dimension": "Dimensión",
+      "external": "Externa",
+      "internal": "Interna",
+      "length": "Largo",
+      "width": "Ancho",
+      "height": "Alto",
+      "door": "Puerta",
+      "maxGross": "Peso bruto máx.",
+      "tare": "Tara",
+      "payload": "Carga útil",
+      "volume": "Volumen"
+    },
+    "types": {
+      "20gp": {
+        "name": "20' GP (Dry Standard)",
+        "description": "Contenedor dry de 20 pies. El más usado para carga general y exportaciones de volumen medio."
+      },
+      "40gp": {
+        "name": "40' GP (Dry Standard)",
+        "description": "Contenedor dry de 40 pies con altura estándar. Ideal para grandes volúmenes a menor costo por m³."
+      },
+      "40hq": {
+        "name": "40' HQ / HC (High Cube)",
+        "description": "Contenedor de 40 pies con altura extra (+30 cm). Muy utilizado en FCL por mayor capacidad cúbica."
+      },
+      "40nor": {
+        "name": "40' NOR (Non-Operating Reefer)",
+        "description": "Contenedor reefer utilizado como dry cuando no requiere temperatura controlada. Menor volumen interno."
+      },
+      "45hc": {
+        "name": "45' HC (High Cube)",
+        "description": "Contenedor de 45 pies high cube. Mayor capacidad para rutas que lo permiten."
+      },
+      "20rf": {
+        "name": "20' RF (Reefer)",
+        "description": "Contenedor refrigerado de 20 pies para carga perecedera o temperatura controlada."
+      },
+      "40rh": {
+        "name": "40' RH (Reefer High Cube)",
+        "description": "Contenedor reefer de 40 pies high cube. Mayor volumen para carga refrigerada consolidada."
+      },
+      "20ot": {
+        "name": "20' OT (Open Top)",
+        "description": "Contenedor open top con lona superior. Para carga que no entra por la puerta o requiere grúa por arriba."
+      },
+      "40fr": {
+        "name": "40' FR (Flat Rack)",
+        "description": "Flat rack de 40 pies para carga sobredimensionada, maquinaria o project cargo."
+      }
+    }
+  },
+  "contactenos": {
+    "title": "Contáctenos",
+    "kicker": "Atención comercial",
+    "lead": "Para cotizaciones, operaciones en curso o dudas del día a día, lo más rápido suele ser hablar con tu ejecutivo. Para temas generales de la empresa, también puedes escribir a Seemann Group.",
+    "executiveTitle": "Tu ejecutivo",
+    "executiveText": "Es quien conoce tu cuenta y coordina tus embarques.",
+    "executiveRole": "Ejecutivo comercial",
+    "writeExecutive": "Enviar correo",
+    "callExecutive": "Llamar",
+    "noExecutive": "No encontramos un ejecutivo asignado a tu cuenta. Escríbenos a contacto@seemanngroup.com y te ayudamos.",
+    "generalTitle": "Oficina central",
+    "generalText": "Si prefieres un canal general o no tienes a mano los datos de tu ejecutivo:",
+    "labelEmail": "Correo",
+    "labelPhone": "Teléfono",
+    "labelAddress": "Dirección",
+    "visitWebsite": "Sitio corporativo",
+    "portalBug": "¿Algo falló en el portal?",
+    "portalBugLink": "Reportar error",
+    "activeAccount": "Cuenta: {{account}}",
+    "asideText": "Horario de atención comercial: lunes a viernes, 8:30–17:30 (hora Chile)."
+  },
+  "reportarError": {
+    "title": "¿Encontraste un error?",
+    "kicker": "Soporte del portal",
+    "lead": "A veces un botón no responde, un monto no cuadra o una pantalla se queda pegada. Cuéntanos qué viste y lo revisamos.",
+    "helpTitle": "Qué conviene incluir",
+    "helpText": "No hace falta un informe largo. Con un par de líneas y, si puedes, una captura, solemos ubicar el problema rápido.",
+    "examples": {
+      "item1": "Qué estabas haciendo (cotizando, rastreando, descargando un PDF…).",
+      "item2": "Qué esperabas que pasara y qué pasó en realidad.",
+      "item3": "Si recuerdas la hora aproximada, mejor.",
+      "item4": "Captura de pantalla si la tienes a mano — no es obligatoria."
+    },
+    "contextLabel": "Esto se incluirá en tu correo",
+    "contextAccount": "Cuenta activa: {{account}}",
+    "contextNote": "Así no tienes que buscar estos datos al escribir.",
+    "asideLabel": "Contacto directo",
+    "asideName": "Equipo de plataforma",
+    "sendEmail": "Redactar correo",
+    "copyEmail": "Copiar dirección",
+    "copied": "Copiado",
+    "footnote": "Respondemos en días hábiles. Si es urgente para una operación en curso, avisa también a tu ejecutivo.",
+    "mailSubject": "Error en portal de clientes",
+    "mailGreeting": "Hola,",
+    "mailBodyDescribe": "Vi algo raro en el portal:",
+    "mailBodyUrl": "Página",
+    "mailAccount": "Cuenta",
+    "mailUser": "Usuario",
+    "mailSignOff": "Gracias."
+  },
+  "itinerarioPage": {
+    "title": "Encontrar un itinerario",
+    "subtitle": "Consulta rutas disponibles por modalidad, origen y destino."
+  },
+  "pageBanner": {
+    "airShipments": {
+      "badge": "Operaciones Aéreas",
+      "title": "Tus envíos aéreos",
+      "description": "Visualiza y gestiona tus operaciones aéreas. Desde aquí puedes consultar el estado, hacer seguimiento y revisar los detalles de cada envío."
+    },
+    "oceanShipments": {
+      "badge": "Operaciones Marítimas",
+      "title": "Tus envíos marítimos",
+      "description": "Visualiza y gestiona tus operaciones marítimas. Consulta el estado, haz seguimiento de contenedores y revisa cada detalle de tus embarques."
+    },
+    "groundShipments": {
+      "badge": "Operaciones Terrestres",
+      "title": "Tus envíos terrestres",
+      "description": "Consulta el estado y detalle de tus operaciones terrestres. Revisa rutas, transportistas y fechas de entrega."
+    },
+    "quotes": {
+      "badge": "Cotizaciones",
+      "title": "Tus cotizaciones",
+      "description": "Consulta el detalle, vigencia y estado de todas tus cotizaciones. Desde aquí puedes revisar tarifas y volver a cotizar."
+    },
+    "specialQuote": {
+      "badge": "Servicio Premium",
+      "title": "¿Necesitas una cotización especial?",
+      "description": "Cargas sobredimensionadas, proyecto, temperatura controlada, materiales peligrosos u otras condiciones especiales. Tu ejecutivo te dará la mejor solución."
+    },
+    "shippingOrder": {
+      "badge": "Etapa Pre-Operacional",
+      "title": "Operaciones activas",
+      "description": "La información aquí mostrada es tentativa y puede variar. Aquí recibirás de forma temprana tu AWB o HBL para que puedas iniciar el seguimiento de tu carga antes de que la operación se refleje en las vistas de envíos."
+    },
+    "airTracking": {
+      "badge": "Seguimiento aéreo",
+      "title": "Servicio de seguimiento para cargas aéreas",
+      "description": "<p>Ingrese <strong>exactamente el AWB entregado por su aerolínea</strong>. Un número incorrecto consumirá créditos innecesariamente.</p><p>¿No conoce su AWB? Revíselo en <highlight>Operaciones Aéreas</highlight>.</p>"
+    },
+    "oceanTracking": {
+      "badge": "Seguimiento marítimo",
+      "title": "Servicio de seguimiento para cargas marítimas",
+      "description": "<p>Ingrese el <strong>número de contenedor o booking</strong> proporcionado por su naviera. El sistema detectará automáticamente la naviera correspondiente.</p><p>¿No conoce su contenedor? Revíselo en <highlight>Operaciones Marítimas</highlight>.</p>"
+    },
+    "myDocuments": {
+      "badge": "Mis Documentos",
+      "title": "Documentación",
+      "description": "Consulta y gestiona todos tus documentos relacionados con tus envíos. Aquí encontrarás facturas, guías aéreas, manifiestos y más, todo en un solo lugar para tu comodidad."
+    }
   }
 }

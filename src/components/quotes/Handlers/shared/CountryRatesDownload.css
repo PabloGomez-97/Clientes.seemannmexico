@@ -1,0 +1,89 @@
+.qa-routes-actions {
+  align-items: center;
+}
+
+.qa-country-rates-download {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.qa-country-rates-download-btn {
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.qa-country-rates-download-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 290px;
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  z-index: 30;
+}
+
+.qa-country-rates-download-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #111;
+  padding: 6px 8px 8px 8px;
+}
+
+.qa-country-rates-download-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.qa-country-rates-download-item:hover {
+  background: #f7f8fa;
+}
+
+.qa-country-rates-download-item__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(17, 17, 17, 0.06);
+  color: #444;
+  flex: 0 0 auto;
+}
+
+.qa-country-rates-download-item__text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.qa-country-rates-download-item__label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #111;
+  line-height: 1.2;
+}
+
+.qa-country-rates-download-item__desc {
+  display: block;
+  font-size: 0.75rem;
+  color: #666;
+  line-height: 1.2;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

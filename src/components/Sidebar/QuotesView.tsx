@@ -3,9 +3,10 @@ import { useOutletContext, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { useClientOverride } from "../../contexts/ClientOverrideContext";
 import { useTranslation } from "react-i18next";
-import { imgUrl } from "../../config/images";
 import LoadingTips from "../shipments/LoadingTips";
 import { DocumentosSection } from "./Documents/DocumentosSection";
+import PageBannerHeader from "../shared/layout/PageBannerHeader";
+import QuotePdfResendCell from "./QuotePdfResendCell";
 import "./styles/QuotesView.css";
 
 interface OutletContext {
@@ -363,6 +364,7 @@ function QuotesView({
 
   // PDF state
   const [downloadingPDF, setDownloadingPDF] = useState<string | null>(null);
+  const [resendingPDF, setResendingPDF] = useState<string | null>(null);
   const [quoteDetails, setQuoteDetails] = useState<Record<string, any>>({});
   const [loadingDetails, setLoadingDetails] = useState<Record<string, boolean>>(
     {},
@@ -1003,6 +1005,54 @@ function QuotesView({
     [token, activeUsername],
   );
 
+  const handleResendQuotePdf = useCallback(
+    async ({
+      quoteNumber,
+      emails,
+      customerReference,
+      ownerUsername,
+    }: {
+      quoteNumber: string;
+      emails: string[];
+      customerReference?: string;
+      ownerUsername?: string;
+    }) => {
+      if (!token || !quoteNumber) {
+        throw new Error("Tu sesión expiró. Vuelve a iniciar sesión.");
+      }
+
+      setResendingPDF(quoteNumber);
+      try {
+        const res = await fetch("/api/quote-pdf/resend", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            quoteNumber,
+            emails,
+            customerReference,
+            ownerUsername: ownerUsername || activeUsername,
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          throw new Error(
+            typeof data.error === "string"
+              ? data.error
+              : "No se pudo enviar el correo.",
+          );
+        }
+      } finally {
+        setResendingPDF(null);
+      }
+    },
+    [token, activeUsername],
+  );
+
   /* -- Sort icon -------------------------------------------- */
   const SortIcon = ({ column }: { column: string }) => {
     const active = sortColumn === column;
@@ -1024,84 +1074,7 @@ function QuotesView({
      ========================================================= */
   return (
     <div className="qv-container">
-      {/* Image banner */}
-      <div
-        style={{
-          position: "relative",
-          height: 220,
-          overflow: "hidden",
-          background: "#1a1a1a",
-          borderRadius: 12,
-          marginBottom: 24,
-        }}
-      >
-        <img
-          src={imgUrl("/imo.png")}
-          alt="Cotizaciones"
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            opacity: 0.75,
-          }}
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = "none";
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background:
-              "linear-gradient(to right, rgba(26,26,26,0.85) 0%, rgba(26,26,26,0.35) 100%)",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 32px",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                display: "inline-block",
-                background: "var(--primary-color)",
-                color: "#fff",
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: "0.06em",
-                padding: "3px 10px",
-                borderRadius: 3,
-                marginBottom: 10,
-              }}
-            >
-              Cotizaciones
-            </div>
-            <h2
-              style={{
-                color: "#fff",
-                fontSize: 24,
-                fontWeight: 700,
-                letterSpacing: "-0.02em",
-                margin: 0,
-                lineHeight: 1.3,
-              }}
-            >
-              Tus cotizaciones
-            </h2>
-            <p
-              style={{
-                color: "rgba(255,255,255,0.78)",
-                fontSize: 14,
-                letterSpacing: "0.01em",
-                margin: "8px 0 0",
-                maxWidth: 460,
-              }}
-            >
-              Consulta el detalle, vigencia y estado de todas tus cotizaciones.
-              Desde aquí puedes revisar tarifas y volver a cotizar.
-            </p>
-          </div>
-        </div>
-      </div>
+      <PageBannerHeader variant="quotes" rounded />
 
       {/* -- Toolbar (advanced search) ------------------------- */}
       <div
@@ -1409,6 +1382,9 @@ function QuotesView({
             <table className="qv-table">
               <thead>
                 <tr>
+                  <th className="qv-th">
+                    <span>{t("quotesView.customerRef")}</span>
+                  </th>
                   <th
                     className="qv-th qv-th--sortable"
                     onClick={() => handleSort("number")}
@@ -1477,6 +1453,12 @@ function QuotesView({
                         className={`qv-tr ${isExpanded ? "qv-tr--active" : ""}`}
                         onClick={() => toggleAccordion(quote)}
                       >
+                        <td
+                          className="qv-td qv-td--truncate"
+                          title={quote.customerReference || "---"}
+                        >
+                          {quote.customerReference || "---"}
+                        </td>
                         <td className="qv-td qv-td--number">
                           <svg
                             className={`qv-row-chevron ${isExpanded ? "qv-row-chevron--open" : ""}`}
@@ -1522,35 +1504,55 @@ function QuotesView({
                           className="qv-td qv-td--center"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {quote.hasPdf ? (
-                            <button
-                              className="qv-pdf-btn"
-                              disabled={downloadingPDF === quote.number}
-                              onClick={() =>
-                                handleDownloadPDF(quote.number || "")
-                              }
-                            >
-                              {downloadingPDF === quote.number ? (
-                                <span
-                                  className="spinner-border spinner-border-sm"
-                                  style={{ width: "10px", height: "10px" }}
-                                />
-                              ) : (
-                                "Descargar"
-                              )}
-                            </button>
-                          ) : (
-                            <span
-                              style={{ color: "#d1d5db", fontSize: "11px" }}
-                            >
-                              ---
-                            </span>
-                          )}
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 6,
+                              alignItems: "center",
+                            }}
+                          >
+                            {quote.hasPdf ? (
+                              <button
+                                className="qv-pdf-btn"
+                                disabled={downloadingPDF === quote.number}
+                                onClick={() =>
+                                  handleDownloadPDF(quote.number || "")
+                                }
+                              >
+                                {downloadingPDF === quote.number ? (
+                                  <span
+                                    className="spinner-border spinner-border-sm"
+                                    style={{ width: "10px", height: "10px" }}
+                                  />
+                                ) : (
+                                  "Descargar"
+                                )}
+                              </button>
+                            ) : (
+                              <span
+                                style={{ color: "#d1d5db", fontSize: "11px" }}
+                              >
+                                ---
+                              </span>
+                            )}
+                            {quote.number && quote.hasPdf && (
+                              <QuotePdfResendCell
+                                quoteNumber={quote.number}
+                                hasPdf={Boolean(quote.hasPdf)}
+                                customerReference={quote.customerReference}
+                                ownerUsername={activeUsername}
+                                token={token}
+                                onSend={handleResendQuotePdf}
+                                isSending={resendingPDF === quote.number}
+                              />
+                            )}
+                          </div>
                         </td>
                       </tr>
                       {isExpanded && (
                         <tr className="qv-accordion-row">
-                          <td colSpan={10} className="qv-accordion-cell">
+                          <td colSpan={11} className="qv-accordion-cell">
                             <div className="qv-accordion-content">
                                   {quote.number &&
                                     loadingDetails[quote.number] === true && (

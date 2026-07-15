@@ -1162,3 +1162,9 @@ export function getAirportByOrigin(
 
   return null;
 }
+
+/** País ISO2 del origen según catálogo (sin requerir fallback extra). */
+export function getOriginCountryCode(originNormalized: string): string | null {
+  const coords = getAirportByOrigin(originNormalized);
+  return coords?.countryCode?.toUpperCase() ?? null;
+}

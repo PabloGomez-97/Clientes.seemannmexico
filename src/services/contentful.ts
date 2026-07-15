@@ -112,3 +112,74 @@ export async function getBlogPostBySlug(
 export async function getRecentPosts(limit = 4): Promise<BlogPost[]> {
   return getBlogPosts(limit);
 }
+
+export interface HomeSlideFields {
+  title: string;
+  subtitle?: string;
+  buttonText: string;
+  buttonLink: string;
+  order?: number;
+  featuredImage?: BlogPostFields["featuredImage"];
+}
+
+export interface HomeSlide {
+  id: string;
+  title: string;
+  subtitle: string;
+  buttonText: string;
+  buttonLink: string;
+  imageUrl: string | null;
+  order: number;
+}
+
+function transformHomeSlide(entry: Entry<EntrySkeletonType>): HomeSlide {
+  const fields = entry.fields as unknown as HomeSlideFields;
+  const featuredImage = fields.featuredImage;
+  const imageUrl = featuredImage?.fields?.file?.url
+    ? `https:${featuredImage.fields.file.url}`
+    : null;
+
+  return {
+    id: entry.sys.id,
+    title: fields.title || "",
+    subtitle: fields.subtitle || "",
+    buttonText: fields.buttonText || "",
+    buttonLink: fields.buttonLink || "/newquotes",
+    imageUrl,
+    order: typeof fields.order === "number" ? fields.order : 0,
+  };
+}
+
+function isHomeSlidesContentfulEnabled(): boolean {
+  const spaceId = import.meta.env.VITE_CONTENTFUL_SPACE_ID;
+  const accessToken = import.meta.env.VITE_CONTENTFUL_ACCESS_TOKEN;
+  const enabled =
+    String(
+      import.meta.env.VITE_CONTENTFUL_HOME_SLIDES_ENABLED ?? "",
+    ).toLowerCase() === "true";
+
+  return Boolean(spaceId && accessToken && enabled);
+}
+
+/**
+ * Hero slides from Contentful (content type: homeSlide). Returns [] if unavailable.
+ * Opt-in via VITE_CONTENTFUL_HOME_SLIDES_ENABLED=true once the CMS content type exists.
+ */
+export async function getHomeSlides(): Promise<HomeSlide[]> {
+  if (!isHomeSlidesContentfulEnabled()) {
+    return [];
+  }
+
+  try {
+    const response = await client.getEntries({
+      content_type: "homeSlide",
+      limit: 5,
+    });
+    return response.items
+      .map(transformHomeSlide)
+      .sort((a, b) => a.order - b.order);
+  } catch (error) {
+    console.error("Error fetching home slides:", error);
+    return [];
+  }
+}

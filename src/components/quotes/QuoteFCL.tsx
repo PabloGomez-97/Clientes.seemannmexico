@@ -1,4 +1,10 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  type MutableRefObject,
+} from "react";
 import { Modal, Button, OverlayTrigger, Tooltip } from "react-bootstrap";
 // Sin Linbis: no usamos OutletContext
 import { useAuth } from "../../auth/AuthContext";
@@ -66,7 +72,28 @@ import {
   type CountryPort,
 } from "./Handlers/FCL/ExpandedRoutesFcl";
 import NearbyPortSelectorFCL from "./NearbySelector/NearbyPortSelectorFCL";
-import { PortSelectorFCL } from "./Selectroute";
+import { CountryOriginSelector, PortSelectorFCL } from "./Selectroute";
+import {
+  buildOriginIndex,
+  buildPolOptionsForCountryAndPod,
+  buildPodOptionsForCountry,
+  getOriginsInCountry,
+  type OriginIndex,
+  type OriginSelectOption,
+} from "./originSelection";
+import { useAirCotizadorSidebarOptional } from "./Handlers/Air/AirCotizadorSidebarContext";
+import { FclPriceHistoryModal } from "./Handlers/FCL/FclPriceHistoryModal";
+import { FclPriceHistoryStep2Panel } from "./Handlers/FCL/FclPriceHistoryStep2Panel";
+import { useFclPriceHistory } from "./Handlers/FCL/useFclPriceHistory";
+import { buildCountryFclRates } from "./Handlers/FCL/buildCountryFclRates";
+import { CountryRatesDownloadButton } from "./Handlers/shared/CountryRatesDownloadButton";
+import { COUNTRY_RATE_COLUMNS_FCL } from "./Handlers/shared/countryRatesTypes";
+import "./Handlers/shared/CountryRatesDownload.css";
+import {
+  FCL_PRICE_TIERS,
+  getCurrentFclMarketMinPrices,
+} from "./Handlers/FCL/HandlerQuoteFCLHistorical";
+import { mergeCurrentRatesIntoPriceHistory } from "./Handlers/shared/mergeCurrentPriceHistory";
 import { useQuoteTracking } from "../../hooks/useQuoteTracking";
 import {
   SIMULATION_MISSING_VALUE,
@@ -116,7 +143,10 @@ function QuoteFCL({
   preselectedPOD,
   isEjecutivoMode = false,
   isSimulationMode = false,
-}: QuoteFCLProps = {}) {
+  abandonRef,
+}: QuoteFCLProps & {
+  abandonRef?: MutableRefObject<(() => void) | null>;
+} = {}) {
   const {
     user,
     token,
@@ -128,8 +158,10 @@ function QuoteFCL({
   const ejecutivo = user?.ejecutivo;
   const { t } = useTranslation();
   const { registrarEvento } = useAuditLog();
-  const { trackStart, trackStep, trackRouteSelected, trackComplete } =
-    useQuoteTracking("FCL");
+  const { trackStep, trackRouteSelected, trackComplete } = useQuoteTracking(
+    "FCL",
+    { abandonRef },
+  );
   const { config: gestionCotizadorConfig } = useGestionCotizador();
   const fclTtConfig = gestionCotizadorConfig.fcl;
   const { config: fclExwConfig } = useFclExwConfig();
@@ -139,6 +171,7 @@ function QuoteFCL({
   );
 
   const [loading, setLoading] = useState(false);
+  const [customerReference, setCustomerReference] = useState("");
   const [response, setResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -175,6 +208,10 @@ function QuoteFCL({
   const [loadingRutas, setLoadingRutas] = useState(true);
   const [errorRutas, setErrorRutas] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [historicalRefreshToken, setHistoricalRefreshToken] = useState(0);
+  const [paisSeleccionado, setPaisSeleccionado] =
+    useState<OriginSelectOption | null>(null);
+  const [paisNR, setPaisNR] = useState<OriginSelectOption | null>(null);
 
   const [polSeleccionado, setPolSeleccionado] = useState<SelectOption | null>(
     null,
@@ -334,6 +371,78 @@ function QuoteFCL({
     ? SIMULATION_MISSING_VALUE
     : "X";
   const showPendingQuote = sinTarifa && !isSimulationMode;
+  const originIndex = useMemo((): OriginIndex | null => {
+    if (!rutas.length) return null;
+    return buildOriginIndex(
+      Array.from(new Map(rutas.map((route) => [route.polNormalized, route.pol])).entries())
+        .map(([normalized, label]) => ({ normalized, label })),
+      {
+        getCountryCode: (normalized) =>
+          getPortByPOL(normalized)?.unlocode?.slice(0, 2).toUpperCase() ?? null,
+        getCoords: (normalized) => {
+          const port = getPortByPOL(normalized);
+          return port ? { lat: port.lat, lng: port.lng } : null;
+        },
+      },
+    );
+  }, [rutas]);
+  const originIndexNR = useMemo((): OriginIndex | null => {
+    if (!expandedRoutes?.pols.length) return null;
+    return buildOriginIndex(
+      expandedRoutes.pols.map((port) => ({ normalized: port.value, label: port.label })),
+      {
+        getCountryCode: (normalized) =>
+          getPortByPOL(normalized)?.unlocode?.slice(0, 2).toUpperCase() ?? null,
+        getCoords: (normalized) => {
+          const port = getPortByPOL(normalized);
+          return port ? { lat: port.lat, lng: port.lng } : null;
+        },
+      },
+    );
+  }, [expandedRoutes]);
+  const activeOriginIndex = routeMode === "noRecurrente" ? originIndexNR : originIndex;
+  const activePais = routeMode === "noRecurrente" ? paisNR : paisSeleccionado;
+  const opcionesPOLPais = useMemo(() => {
+    if (!activePais || !activeOriginIndex) return [];
+    if (routeMode === "noRecurrente") {
+      return getOriginsInCountry(activeOriginIndex, activePais.value).map(
+        (origin) => ({
+          value: origin.normalized,
+          label: origin.label,
+        }),
+      );
+    }
+    if (!originIndex || !podSeleccionado) return [];
+    return buildPolOptionsForCountryAndPod(
+      rutas,
+      originIndex,
+      activePais.value,
+      podSeleccionado.value,
+      (_normalized, pol) => capitalize(pol),
+      (route) => isSimulationMode || getValidityClass(route.validUntil) !== "expired",
+    );
+  }, [
+    activePais,
+    activeOriginIndex,
+    routeMode,
+    originIndex,
+    podSeleccionado,
+    rutas,
+    isSimulationMode,
+  ]);
+
+  useEffect(() => {
+    if (!activePais || !activeOriginIndex || routeMode === "noRecurrente") {
+      if (routeMode !== "noRecurrente") setOpcionesPOD([]);
+      return;
+    }
+    setOpcionesPOD(buildPodOptionsForCountry(rutas, activeOriginIndex, activePais.value, (pod) => getPODDisplayName(pod)));
+    setPodSeleccionado(null);
+    setPolSeleccionado(null);
+    setRutaSeleccionada(null);
+    setContainerSeleccionado(null);
+    setSinTarifa(false);
+  }, [activePais, activeOriginIndex, rutas, routeMode]);
 
   // Resetear el puerto seleccionado si la ruta deja de ser EXW + país soportado.
   useEffect(() => {
@@ -355,11 +464,6 @@ function QuoteFCL({
 
   // Cargar clientes asignados al ejecutivo (solo en modo ejecutivo)
   const isPricingRole = user?.roles?.pricing === true;
-
-  // Track quote start on mount
-  useEffect(() => {
-    trackStart();
-  }, [trackStart]);
 
   useEffect(() => {
     if (!isSimulationMode) return;
@@ -655,45 +759,6 @@ function QuoteFCL({
       setLoadingRutas(false);
     }
   };
-
-  // ============================================================================
-  // ACTUALIZAR PODs CUANDO CAMBIA POL
-  // ============================================================================
-
-  useEffect(() => {
-    if (polSeleccionado) {
-      // Filtrar rutas por POL y crear un Map con valores normalizados (solo rutas con tarifa)
-      const podMap = new Map<string, string>();
-
-      rutas
-        .filter((r) => r.polNormalized === polSeleccionado.value)
-        .forEach((r) => {
-          if (!podMap.has(r.podNormalized)) {
-            podMap.set(r.podNormalized, getPODDisplayName(r.podNormalized));
-          }
-        });
-
-      // Crear opciones únicas y ordenadas
-      const podsUnicos = Array.from(podMap.entries())
-        .map(([normalized, displayName]) => ({
-          value: normalized,
-          label: displayName,
-        }))
-        .sort((a, b) => a.label.localeCompare(b.label));
-
-      setOpcionesPOD(podsUnicos);
-      setPodSeleccionado(null);
-      setRutaSeleccionada(null);
-      setContainerSeleccionado(null);
-      setSinTarifa(false);
-    } else {
-      setOpcionesPOD([]);
-      setPodSeleccionado(null);
-      setRutaSeleccionada(null);
-      setContainerSeleccionado(null);
-      setSinTarifa(false);
-    }
-  }, [polSeleccionado, rutas]);
 
   // ============================================================================
   // ACTUALIZAR PODs NO RECURRENTES CUANDO CAMBIA POL NR
@@ -997,6 +1062,96 @@ function QuoteFCL({
   const hasHiddenRoutes = rutasFiltradas.length > INITIAL_VISIBLE_ROUTES;
   const activeCarriersKey = Array.from(carriersActivos).sort().join("|");
 
+  const countryRatesRows = useMemo(
+    () =>
+      buildCountryFclRates(
+        rutas,
+        originIndex,
+        paisSeleccionado?.value,
+        carriersActivos,
+        podSeleccionado?.value,
+      ),
+    [
+      rutas,
+      originIndex,
+      paisSeleccionado?.value,
+      podSeleccionado?.value,
+      activeCarriersKey,
+    ],
+  );
+
+  const {
+    loading: loadingPriceHistory,
+    error: errorPriceHistory,
+    seriesResult: priceHistorySeries,
+  } = useFclPriceHistory(
+    polSeleccionado?.value,
+    podSeleccionado?.value,
+    historicalRefreshToken,
+  );
+
+  const priceHistorySeriesWithCurrent = useMemo(() => {
+    if (!polSeleccionado?.value || !podSeleccionado?.value) {
+      return priceHistorySeries;
+    }
+    const current = getCurrentFclMarketMinPrices(
+      rutas,
+      polSeleccionado.value,
+      podSeleccionado.value,
+    );
+    return mergeCurrentRatesIntoPriceHistory(
+      priceHistorySeries,
+      FCL_PRICE_TIERS,
+      current.pricesByTier,
+      {
+        currentCurrency: current.currency,
+        currentRowCount: current.rowCount,
+      },
+    );
+  }, [
+    priceHistorySeries,
+    rutas,
+    polSeleccionado?.value,
+    podSeleccionado?.value,
+  ]);
+
+  const setCotizadorSidebar = useAirCotizadorSidebarOptional()?.setSidebar;
+  const showStep2PriceHistoryPanel =
+    currentStep === 2 &&
+    !!rutaSeleccionada &&
+    !!containerSeleccionado &&
+    routeMode === "recurrente";
+
+  useEffect(() => {
+    if (!setCotizadorSidebar) return;
+
+    if (!showStep2PriceHistoryPanel || !rutaSeleccionada) {
+      setCotizadorSidebar(null);
+      return;
+    }
+
+    setCotizadorSidebar(
+      <FclPriceHistoryStep2Panel
+        polLabel={rutaSeleccionada.pol}
+        podLabel={rutaSeleccionada.pod}
+        loading={loadingPriceHistory}
+        error={errorPriceHistory}
+        seriesResult={priceHistorySeriesWithCurrent}
+      />,
+    );
+
+    return () => {
+      setCotizadorSidebar(null);
+    };
+  }, [
+    setCotizadorSidebar,
+    showStep2PriceHistoryPanel,
+    rutaSeleccionada,
+    loadingPriceHistory,
+    errorPriceHistory,
+    priceHistorySeriesWithCurrent,
+  ]);
+
   // Scroll a rutas cuando aparecen
   useEffect(() => {
     if (rutasFiltradas.length > 0 && currentStep === 1) {
@@ -1020,7 +1175,6 @@ function QuoteFCL({
 
   const handlePolRecurrenteChange = (option: SelectOption | null) => {
     setPolSeleccionado(option);
-    setPodSeleccionado(null);
     setRutaSeleccionada(null);
     setContainerSeleccionado(null);
     setSinTarifa(false);
@@ -2409,11 +2563,13 @@ function QuoteFCL({
       project: {
         name: "FCL",
       },
-      customerReference: isSimulationMode
-        ? "Portal Created [FCL] - SIMULADOR"
-        : sinTarifa
-          ? "Portal Created [FCL] - PENDIENTE TARIFA"
-          : "Portal Created [FCL]",
+      customerReference:
+        customerReference.trim() ||
+        (isSimulationMode
+          ? "Portal Created [FCL] - SIMULADOR"
+          : sinTarifa
+            ? "Portal Created [FCL] - PENDIENTE TARIFA"
+            : "Portal Created [FCL]"),
       contact: {
         name: effectiveUsername,
       },
@@ -2481,6 +2637,21 @@ function QuoteFCL({
         <div>
           <h2 className="qf-title">Cotización FCL</h2>
         </div>
+      </div>
+
+      <div className="mb-3" style={{ maxWidth: 420 }}>
+        <label className="form-label fw-semibold" htmlFor="fcl-customer-ref">
+          Referencia de Cliente
+        </label>
+        <input
+          id="fcl-customer-ref"
+          type="text"
+          className="form-control"
+          value={customerReference}
+          onChange={(e) => setCustomerReference(e.target.value)}
+          placeholder="Ej: PO-12345 / Ref. interna"
+          maxLength={120}
+        />
       </div>
 
       {/* Selector de Cliente (Solo para modo ejecutivo) */}
@@ -2854,18 +3025,22 @@ function QuoteFCL({
                   <div className="mb-4">
                     <div className="row g-3 mb-4">
                       <div className="col-md-6">
-                        <PortSelectorFCL
-                          id="fcl-pol-recurrente"
-                          label="Puerto de Origen (POL)"
-                          icon=""
-                          value={polSeleccionado}
-                          onChange={handlePolRecurrenteChange}
-                          options={opcionesPOL}
-                          placeholder="Ingresa Puerto o UN/LOCODE"
+                        <CountryOriginSelector
+                          id="fcl-country-recurrente"
+                          label="País de origen"
+                          value={paisSeleccionado}
+                          onChange={(option) => {
+                            setPaisSeleccionado(option);
+                            setPolSeleccionado(null);
+                            setPodSeleccionado(null);
+                            setRutaSeleccionada(null);
+                            setContainerSeleccionado(null);
+                            setSinTarifa(false);
+                          }}
+                          options={originIndex?.countries ?? []}
                           menuPlacement="bottom"
                         />
                       </div>
-
                       <div className="col-md-6">
                         <PortSelectorFCL
                           id="fcl-pod-recurrente"
@@ -2874,25 +3049,60 @@ function QuoteFCL({
                           value={podSeleccionado}
                           onChange={setPodSeleccionado}
                           options={opcionesPOD}
-                          placeholder={
-                            polSeleccionado
-                              ? "Ingresa Puerto o UN/LOCODE"
-                              : "Selecciona primero el origen"
-                          }
-                          isDisabled={!polSeleccionado}
+                          placeholder={paisSeleccionado ? "Ingresa Puerto o UN/LOCODE" : "Selecciona primero el país"}
+                          isDisabled={!paisSeleccionado}
                           menuPlacement="bottom"
                         />
                       </div>
+                      {podSeleccionado && (
+                      <div className="col-md-6">
+                        <PortSelectorFCL
+                          id="fcl-pol-recurrente"
+                          label="Puerto de Origen (POL)"
+                          icon=""
+                          value={polSeleccionado}
+                          onChange={handlePolRecurrenteChange}
+                          options={opcionesPOLPais}
+                          placeholder="Ingresa Puerto o UN/LOCODE"
+                          menuPlacement="bottom"
+                        />
+                      </div>
+                      )}
                     </div>
 
                     {/* Rutas Disponibles */}
                     {polSeleccionado && podSeleccionado && (
                       <div className="mt-4" ref={routesRef}>
                         {/* Header mejorado */}
-                        <div className="d-flex justify-content-between align-items-center mb-3">
-                          <h6 className="qa-section-label">
+                        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                          <h6 className="qa-section-label mb-0">
                             Rutas Disponibles ({rutasFiltradas.length})
                           </h6>
+                          <div className="d-flex align-items-center gap-2 flex-wrap">
+                            {paisSeleccionado ? (
+                              <CountryRatesDownloadButton
+                                service="fcl"
+                                countryCode={paisSeleccionado.value}
+                                countryLabel={paisSeleccionado.label}
+                                destinationLabel={podSeleccionado.label}
+                                destinationCode={podSeleccionado.value}
+                                selectedOriginLabel={polSeleccionado.label}
+                                columns={COUNTRY_RATE_COLUMNS_FCL}
+                                rows={countryRatesRows}
+                                translationNs="Quotefcl"
+                                disabled={countryRatesRows.length === 0}
+                              />
+                            ) : null}
+                            {rutasFiltradas.length > 0 ? (
+                              <FclPriceHistoryModal
+                                polLabel={polSeleccionado.label}
+                                podLabel={podSeleccionado.label}
+                                loading={loadingPriceHistory}
+                                error={errorPriceHistory}
+                                seriesResult={priceHistorySeriesWithCurrent}
+                              />
+                            ) : null}
+                          </div>
                         </div>
 
                         {rutasFiltradas.length > 0 &&
@@ -3221,14 +3431,36 @@ function QuoteFCL({
                   <div>
                     <div className="row g-3 mb-4">
                       <div className="col-md-6">
+                        <CountryOriginSelector
+                          id="fcl-country-nr"
+                          label="País de origen"
+                          value={paisNR}
+                          onChange={(option) => {
+                            setPaisNR(option);
+                            setPolNR(null);
+                            setPodNR(null);
+                            setRutaSeleccionada(null);
+                            setContainerSeleccionado(null);
+                            setSinTarifa(false);
+                          }}
+                          options={originIndexNR?.countries ?? []}
+                          menuPlacement="bottom"
+                        />
+                      </div>
+                      <div className="col-md-6">
                         <PortSelectorFCL
                           id="fcl-pol-nr"
                           label="Puerto de Origen (POL)"
                           icon=""
                           value={polNR}
                           onChange={handlePolNRChange}
-                          options={opcionesPOL_NR}
-                          placeholder="Ingresa Puerto o UN/LOCODE"
+                          options={opcionesPOLPais}
+                          placeholder={
+                            paisNR
+                              ? "Ingresa Puerto o UN/LOCODE"
+                              : "Selecciona primero el país"
+                          }
+                          isDisabled={!paisNR}
                           menuPlacement="bottom"
                         />
                       </div>

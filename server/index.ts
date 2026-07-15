@@ -34,6 +34,11 @@ import {
   getLinbisAccessToken,
   saveLinbisRefreshToken,
 } from '../api/services/linbisTokenStore.ts';
+import {
+  buildQuotePdfResendEmailHTML,
+  getQuotePdfResendEmailSubject,
+} from '../api/emails/quotePdfResendEmailTemplate.ts';
+import { normalizeQuoteResendEmails } from '../api/utils/quoteResendHelpers.ts';
 
 /** =========================
  *  Entorno + JWT
@@ -1073,6 +1078,7 @@ interface IQuoteIndex {
   destination?: string;
   modeOfTransportation?: string;
   transitDays?: number;
+  customerReference?: string;
   financial?: {
     currency: 'USD';
     amount?: number;
@@ -1099,6 +1105,7 @@ const QuoteIndexSchema = new mongoose.Schema<IQuoteIndexDoc>(
     destination: { type: String },
     modeOfTransportation: { type: String },
     transitDays: { type: Number },
+    customerReference: { type: String },
     financial: {
       currency: { type: String, default: 'USD' },
       amount: { type: Number },
@@ -4104,6 +4111,13 @@ app.post('/api/quotes/save', auth, async (req, res) => {
         ? quoteJson.transitDays
         : undefined;
 
+    const customerReferenceRaw =
+      quoteJson?.customerReference ?? quoteJson?.customer_reference;
+    const customerReference =
+      typeof customerReferenceRaw === 'string' && customerReferenceRaw.trim()
+        ? customerReferenceRaw.trim()
+        : undefined;
+
     const financial =
       quoteJson?.financial && typeof quoteJson.financial === 'object'
         ? {
@@ -4149,6 +4163,7 @@ app.post('/api/quotes/save', auth, async (req, res) => {
             ? String(modeOfTransportation).toLowerCase()
             : undefined,
           transitDays,
+          customerReference,
           financial,
           jsonKey,
           pdfKey,
@@ -4211,6 +4226,7 @@ app.get('/api/quotes/list', auth, async (req, res) => {
         destination: qt.destination,
         modeOfTransportation: qt.modeOfTransportation,
         transitDays: qt.transitDays,
+        customerReference: qt.customerReference,
         financial: qt.financial,
         hasPdf: Boolean(qt.pdfKey),
       })),
@@ -6362,6 +6378,94 @@ app.get('/api/quote-pdf/download/:quoteNumber', auth, async (req, res) => {
 // ============================================================
 
 // POST /api/audit — Registrar evento de auditoría
+
+// POST /api/quote-pdf/resend - Reenviar PDF (R2 México) por correo (BCC)
+app.post('/api/quote-pdf/resend', auth, async (req, res) => {
+  try {
+    const currentUser = (req as any).user;
+    if (!currentUser || !currentUser.username) {
+      return res.status(401).json({ error: 'Usuario no autenticado' });
+    }
+
+    const body = (req.body || {}) as {
+      quoteNumber?: unknown;
+      emails?: unknown;
+      customerReference?: unknown;
+      ownerUsername?: unknown;
+    };
+
+    if (!body.quoteNumber || typeof body.quoteNumber !== 'string' || !body.quoteNumber.trim()) {
+      return res.status(400).json({ error: 'quoteNumber es requerido' });
+    }
+
+    const emailResult = normalizeQuoteResendEmails(body.emails, EMAIL_REGEX);
+    if (emailResult.ok === false) {
+      return res.status(400).json({ error: emailResult.error });
+    }
+
+    const ownerUsername = await resolveDocumentOwnerUsername(
+      currentUser,
+      typeof body.ownerUsername === 'string' && body.ownerUsername.trim()
+        ? body.ownerUsername.trim()
+        : getRequestedDocumentOwnerUsername(req),
+    );
+
+    const number = String(body.quoteNumber).trim();
+    const index = await QuoteIndex.findOne({ number, usuarioId: ownerUsername }).lean();
+    if (!index || !(index as any).pdfKey) {
+      return res.status(404).json({ error: 'PDF de cotización no encontrado' });
+    }
+
+    const pdfBuffer = await getMexicoQuotePdfBuffer(ownerUsername, number);
+    if (!pdfBuffer?.length) {
+      return res.status(404).json({ error: 'PDF de cotización no disponible' });
+    }
+
+    const emailData = {
+      quoteNumber: number,
+      customerReference:
+        typeof body.customerReference === 'string' && body.customerReference.trim()
+          ? body.customerReference.trim()
+          : (index as any).customerReference || undefined,
+      origen: (index as any).origin || undefined,
+      destino: (index as any).destination || undefined,
+      tipoServicio: (index as any).modeOfTransportation || undefined,
+    };
+
+    const subject = getQuotePdfResendEmailSubject(emailData);
+    const htmlContent = buildQuotePdfResendEmailHTML(emailData);
+
+    const brevoPayload: Record<string, unknown> = {
+      sender: { name: 'Portal Clientes Seemann Group México', email: 'noreply@sphereglobal.io' },
+      to: [{ email: 'noreply@sphereglobal.io' }],
+      bcc: emailResult.emails.map((email) => ({ email })),
+      subject,
+      htmlContent,
+      attachment: [{ name: `${number}.pdf`, content: pdfBuffer.toString('base64') }],
+    };
+
+    const brevoResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': process.env.BREVO_API_KEY!,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(brevoPayload),
+    });
+
+    if (!brevoResponse.ok) {
+      const errorText = await brevoResponse.text();
+      console.error('[quote-pdf] Error enviando reenvío con Brevo:', errorText);
+      return res.status(502).json({ error: 'No se pudo enviar el correo. Intenta nuevamente.' });
+    }
+
+    return res.status(200).json({ success: true, recipientCount: emailResult.emails.length });
+  } catch (error: any) {
+    console.error('[quote-pdf] Error al reenviar:', error);
+    return res.status(500).json({ error: 'Error interno al reenviar PDF' });
+  }
+});
+
 app.post('/api/audit', auth, async (req, res) => {
   try {
     const { usuario, email, rol, ejecutivo, ejecutivoEmail, accion, categoria, descripcion, detalles, clienteAfectado } = req.body;

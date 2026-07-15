@@ -23,24 +23,28 @@ const COLUMNS: FooterColumn[] = [
       { labelKey: "footer.columns.product.links.pricing", to: "/newquotes" },
       {
         labelKey: "footer.columns.product.links.integrations",
-        to: "/",
+        to: "/contenedores",
       },
-      { labelKey: "footer.columns.product.links.changelog", to: "/" },
+      {
+        labelKey: "footer.columns.product.links.changelog",
+        to: "/contactenos",
+      },
+      {
+        labelKey: "footer.columns.product.links.reportError",
+        to: "/reportar-error",
+      },
     ],
   },
   {
     titleKey: "footer.columns.resources.title",
     links: [
-      {
-        labelKey: "footer.columns.resources.links.1",
-        to: "/newquotes",
-      },
+      { labelKey: "footer.columns.resources.links.1", to: "/newquotes" },
       {
         labelKey: "footer.columns.resources.links.2",
         to: "/cotizacion-especial",
       },
       { labelKey: "footer.columns.resources.links.3", to: "/quotes" },
-      { labelKey: "footer.columns.resources.links.4", to: "/" },
+      { labelKey: "footer.columns.resources.links.4", to: "/itinerario" },
       { labelKey: "footer.columns.resources.links.5", to: "/trackings" },
       { labelKey: "footer.columns.resources.links.6", to: "/air-shipments" },
     ],
@@ -50,19 +54,21 @@ const COLUMNS: FooterColumn[] = [
     links: [
       {
         labelKey: "footer.columns.company.links.about",
-        to: "https://www.seemanngroup.com/",
+        to: "/promesas",
       },
       {
         labelKey: "footer.columns.company.links.careers",
         to: "https://www.seemanngroup.com/",
+        external: true,
       },
       {
         labelKey: "footer.columns.company.links.contact",
-        to: "https://www.seemanngroup.com/",
+        to: "/contactenos",
       },
       {
         labelKey: "footer.columns.company.links.partners",
         to: "https://www.seemanngroup.com/",
+        external: true,
       },
     ],
   },
@@ -98,13 +104,13 @@ function Footer() {
           <div className="sg-footer__brand-row">
             <img
               src="/logo.png"
-              alt="Seemann Group"
+              alt="Seemann México"
               className="sg-footer__logo"
               width={36}
               height={36}
               loading="lazy"
             />
-            <span className="sg-footer__brand-name">Seemann Group</span>
+            <span className="sg-footer__brand-name">Seemann Group México</span>
           </div>
           <p className="sg-footer__tagline">{t("footer.tagline")}</p>
 

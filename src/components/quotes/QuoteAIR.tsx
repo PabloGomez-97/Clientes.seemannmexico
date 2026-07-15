@@ -1,4 +1,10 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  type MutableRefObject,
+} from "react";
 // Sin Linbis: no usamos OutletContext
 import { useAuth } from "../../auth/AuthContext";
 import { useAuditLog } from "../../hooks/useAuditLog";
@@ -38,6 +44,7 @@ import {
   type OverallPieceDataAir,
 } from "./Handlers/Air/OverallPieceAccordionAir";
 import { WeightRangeAlert } from "./Handlers/Air/WeightRangeAlert";
+import { AirFreightMinWeightAlert } from "./Handlers/Air/AirFreightMinWeightAlert";
 import {
   OversizeNotifyExecutive,
   type OversizeReason,
@@ -85,7 +92,32 @@ import {
   type CountryAirport,
 } from "./Handlers/Air/ExpandedRoutesAir";
 import NearbyAirportSelector from "./NearbySelector/NearbyAirportSelector";
-import { AirportSelectorAIR } from "./Selectroute";
+import { AirportSelectorAIR, CountryOriginSelector } from "./Selectroute";
+import {
+  buildOriginIndex,
+  buildOriginOptionsForCountryAndDestination,
+  buildPodOptionsForCountry,
+  findCountryForOrigin,
+  getOriginsInCountry,
+  getRatedOriginsInCountryForDestination,
+  rankRatedOriginsByDistance,
+  resolveExwMapDestination,
+  type OriginIndex,
+  type OriginSelectOption,
+} from "./originSelection";
+import { AirPriceHistoryModal } from "./Handlers/Air/AirPriceHistoryModal";
+import { AirPriceHistoryStep2Panel } from "./Handlers/Air/AirPriceHistoryStep2Panel";
+import { useAirCotizadorSidebarOptional } from "./Handlers/Air/AirCotizadorSidebarContext";
+import { useAirPriceHistory } from "./Handlers/Air/useAirPriceHistory";
+import { buildCountryAirRates } from "./Handlers/Air/buildCountryAirRates";
+import { CountryRatesDownloadButton } from "./Handlers/shared/CountryRatesDownloadButton";
+import { COUNTRY_RATE_COLUMNS_AIR } from "./Handlers/shared/countryRatesTypes";
+import "./Handlers/shared/CountryRatesDownload.css";
+import {
+  AIR_WEIGHT_TIERS,
+  getCurrentAirMarketMinPrices,
+} from "./Handlers/Air/HandlerQuoteAirHistorical";
+import { mergeCurrentRatesIntoPriceHistory } from "./Handlers/shared/mergeCurrentPriceHistory";
 // Linbis removido: cotizaciones México usan R2/Mongo
 import {
   SIMULATION_MISSING_VALUE,
@@ -106,6 +138,13 @@ const FCA_MARKUP = 1.2;
 const DEFAULT_OVERALL_AIR_DESCRIPTION = "Cargamento Aéreo";
 const DEFAULT_OVERALL_AIR_PACKAGE_TYPE = "97";
 const INITIAL_VISIBLE_ROUTES = 5;
+
+function getAirDestinationLabel(
+  destinationNormalized: string,
+  routeDestination: string,
+): string {
+  return getAirportByOrigin(destinationNormalized)?.name ?? capitalize(routeDestination);
+}
 
 /** Expande cuentas multi-empresa: una entrada por empresa en el selector */
 function expandClientesPorEmpresa(
@@ -200,7 +239,10 @@ function QuoteAPITester({
   preselectedDestination,
   isEjecutivoMode = false,
   isSimulationMode = false,
-}: QuoteAIRProps = {}) {
+  abandonRef,
+}: QuoteAIRProps & {
+  abandonRef?: MutableRefObject<(() => void) | null>;
+} = {}) {
   // México: cotizaciones sin Linbis (solo JWT del portal)
   const {
     user,
@@ -213,8 +255,10 @@ function QuoteAPITester({
   const ejecutivo = user?.ejecutivo;
   const { t } = useTranslation();
   const { registrarEvento } = useAuditLog();
-  const { trackStart, trackStep, trackRouteSelected, trackComplete } =
-    useQuoteTracking("AIR");
+  const { trackStep, trackRouteSelected, trackComplete } = useQuoteTracking(
+    "AIR",
+    { abandonRef },
+  );
   const { config: gestionCotizadorConfig } = useGestionCotizador();
   const aereoTtConfig = gestionCotizadorConfig.aereo;
   const vespucioExtendedMultiplierAir = useMemo(
@@ -226,6 +270,7 @@ function QuoteAPITester({
   );
 
   const [loading, setLoading] = useState(false);
+  const [customerReference, setCustomerReference] = useState("");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [response, setResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -344,6 +389,7 @@ function QuoteAPITester({
   const [loadingRutas, setLoadingRutas] = useState(true);
   const [errorRutas, setErrorRutas] = useState<string | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [historicalRefreshToken, setHistoricalRefreshToken] = useState(0);
 
   const [originSeleccionado, setOriginSeleccionado] =
     useState<SelectOption | null>(null);
@@ -374,6 +420,12 @@ function QuoteAPITester({
   const [opcionesDestination, setOpcionesDestination] = useState<
     SelectOption[]
   >([]);
+  const [paisSeleccionado, setPaisSeleccionado] =
+    useState<OriginSelectOption | null>(null);
+  const [paisNR, setPaisNR] = useState<OriginSelectOption | null>(null);
+  const [exwResolvedDistanceKm, setExwResolvedDistanceKm] = useState<
+    number | null
+  >(null);
 
   const [carriersActivos, setCarriersActivos] = useState<Set<string>>(
     new Set(),
@@ -413,6 +465,89 @@ function QuoteAPITester({
     ? SIMULATION_MISSING_VALUE
     : "X";
   const showPendingQuote = sinTarifa && !isSimulationMode;
+  const originGeoOptions = useMemo(
+    () => ({
+      getCountryCode: (normalized: string) =>
+        getAirportByOrigin(normalized)?.countryCode?.toUpperCase() ?? null,
+      getCoords: (normalized: string) => {
+        const airport = getAirportByOrigin(normalized);
+        return airport ? { lat: airport.lat, lng: airport.lng } : null;
+      },
+    }),
+    [],
+  );
+  const originIndex = useMemo((): OriginIndex | null => {
+    if (rutas.length === 0) return null;
+    const origins = new Map<string, string>();
+    rutas.forEach((route) => origins.set(route.originNormalized, route.origin));
+    return buildOriginIndex(
+      Array.from(origins.entries()).map(([normalized, label]) => ({
+        normalized,
+        label: capitalize(label),
+      })),
+      originGeoOptions,
+    );
+  }, [rutas, originGeoOptions]);
+  const originIndexNR = useMemo((): OriginIndex | null => {
+    if (!expandedRoutesAir?.origins.length) return null;
+    return buildOriginIndex(
+      expandedRoutesAir.origins.map((origin) => ({
+        normalized: origin.value,
+        label: origin.label,
+      })),
+      originGeoOptions,
+    );
+  }, [expandedRoutesAir, originGeoOptions]);
+  const activeOriginIndex =
+    routeMode === "noRecurrente" ? originIndexNR : originIndex;
+  const activePais = routeMode === "noRecurrente" ? paisNR : paisSeleccionado;
+  const isNoRecurrente = routeMode === "noRecurrente";
+  const activeDestinationNormalized = isNoRecurrente
+    ? (destNR?.value ?? null)
+    : (destinationSeleccionado?.value ?? null);
+  const recurrenteCountryOptions = originIndex?.countries ?? [];
+  const opcionesOriginPais = useMemo((): SelectOption[] => {
+    if (!activePais || !activeOriginIndex) return [];
+    if (isNoRecurrente) {
+      return getOriginsInCountry(activeOriginIndex, activePais.value).map((origin) => ({
+        value: origin.normalized,
+        label: origin.label,
+      }));
+    }
+    if (!originIndex || !activeDestinationNormalized) return [];
+    return buildOriginOptionsForCountryAndDestination(
+      rutas,
+      originIndex,
+      activePais.value,
+      activeDestinationNormalized,
+      (_normalized, origin) => capitalize(origin),
+      (route) => isSimulationMode || getValidityClass(route.validUntil) !== "expired",
+    );
+  }, [activePais, activeOriginIndex, isNoRecurrente, originIndex, activeDestinationNormalized, rutas, isSimulationMode]);
+  const exwOriginCandidates = useMemo(() => {
+    if (!activePais || !activeOriginIndex) return [];
+    if (isNoRecurrente) return getOriginsInCountry(activeOriginIndex, activePais.value);
+    if (!originIndex || !activeDestinationNormalized) return [];
+    return getRatedOriginsInCountryForDestination(
+      originIndex, activePais.value, activeDestinationNormalized, rutas,
+      (route) => isSimulationMode || getValidityClass(route.validUntil) !== "expired",
+    );
+  }, [activePais, activeOriginIndex, isNoRecurrente, originIndex, activeDestinationNormalized, rutas, isSimulationMode]);
+  const exwNearbyRatedAirports = useMemo(() => {
+    if (incoterm !== "EXW" || !pickupCoords || !activePais) return [];
+    return rankRatedOriginsByDistance(pickupCoords, exwOriginCandidates, 4).map((ranked) => ({
+      value: ranked.origin.normalized, label: ranked.origin.label,
+      lat: ranked.origin.lat, lng: ranked.origin.lng, distanceKm: ranked.distanceKm,
+    }));
+  }, [incoterm, pickupCoords, activePais, exwOriginCandidates]);
+  const exwMapDestination = useMemo((): DestinationCoords | null => {
+    if (incoterm !== "EXW" || exwNearbyRatedAirports.length === 0) return null;
+    return resolveExwMapDestination(
+      exwNearbyRatedAirports,
+      nearbyAirportSelected,
+      (value) => getAirportByOrigin(value)?.iata ?? "",
+    );
+  }, [incoterm, exwNearbyRatedAirports, nearbyAirportSelected]);
 
   // Estado para modal de precio 0
   const [showPriceZeroModal, setShowPriceZeroModal] = useState(false);
@@ -492,11 +627,6 @@ function QuoteAPITester({
 
     setWeightError(null);
   }, [overallDimsAndWeight, manualWeight]);
-
-  // Track quote start on mount
-  useEffect(() => {
-    trackStart();
-  }, [trackStart]);
 
   // ============================================================================
   // CARGA DE DATOS DESDE GOOGLE SHEETS (CSV)
@@ -609,6 +739,33 @@ function QuoteAPITester({
   useEffect(() => {
     setNearbyAirportSelected(null);
   }, [pickupCoords?.lat, pickupCoords?.lng]);
+
+  useEffect(() => {
+    if (!activePais || !activeOriginIndex || isNoRecurrente) {
+      if (!isNoRecurrente) {
+        setOpcionesDestination([]);
+        setDestinationSeleccionado(null);
+        setRutaSeleccionada(null);
+        setSinTarifa(false);
+      }
+      return;
+    }
+    setOpcionesDestination(
+      buildPodOptionsForCountry(
+        rutas.map((route) => ({
+          polNormalized: route.originNormalized,
+          podNormalized: route.destinationNormalized,
+          pod: route.destination,
+        })),
+        activeOriginIndex,
+        activePais.value,
+        getAirDestinationLabel,
+      ),
+    );
+    setDestinationSeleccionado(null);
+    setRutaSeleccionada(null);
+    setSinTarifa(false);
+  }, [activePais, activeOriginIndex, rutas, isNoRecurrente]);
 
   // Cargar clientes asignados al ejecutivo (solo en modo ejecutivo)
   const isPricingRole = user?.roles?.pricing === true;
@@ -1364,36 +1521,6 @@ function QuoteAPITester({
     setCargoFlightWarning(hasCargoWarning ? t("QuoteAIR.alturasupera") : null);
   }, [piecesData, overallDimsAndWeight]);
 
-  // ACTUALIZAR DESTINATIONS CUANDO CAMBIA ORIGIN
-  useEffect(() => {
-    if (originSeleccionado) {
-      // Destinations del sheet de tarifas (solo rutas con tarifa)
-      const destsMap = new Map<string, string>();
-      rutas
-        .filter((r) => r.originNormalized === originSeleccionado.value)
-        .forEach((r) => {
-          const norm = normalize(r.destination);
-          if (norm && !destsMap.has(norm)) {
-            destsMap.set(norm, capitalize(r.destination));
-          }
-        });
-
-      const destinationsUnicos = Array.from(destsMap.entries())
-        .map(([value, label]) => ({ value, label }))
-        .sort((a, b) => a.label.localeCompare(b.label));
-      setOpcionesDestination(destinationsUnicos);
-
-      setDestinationSeleccionado(null);
-      setRutaSeleccionada(null);
-      setSinTarifa(false);
-    } else {
-      setOpcionesDestination([]);
-      setDestinationSeleccionado(null);
-      setRutaSeleccionada(null);
-      setSinTarifa(false);
-    }
-  }, [originSeleccionado, rutas]);
-
   // ACTUALIZAR DESTINATIONS NO RECURRENTES CUANDO CAMBIA ORIGIN NR
   useEffect(() => {
     if (originNR && expandedRoutesAir) {
@@ -1615,6 +1742,95 @@ function QuoteAPITester({
   const activeCarriersKey = Array.from(carriersActivos).sort().join("|");
   const activeCurrenciesKey = Array.from(monedasActivas).sort().join("|");
 
+  const countryRatesRows = useMemo(
+    () =>
+      buildCountryAirRates(
+        rutas,
+        originIndex,
+        paisSeleccionado?.value,
+        carriersActivos,
+        monedasActivas,
+        destinationSeleccionado?.value,
+      ),
+    [
+      rutas,
+      originIndex,
+      paisSeleccionado?.value,
+      destinationSeleccionado?.value,
+      activeCarriersKey,
+      activeCurrenciesKey,
+    ],
+  );
+
+  const {
+    loading: loadingPriceHistory,
+    error: errorPriceHistory,
+    seriesResult: priceHistorySeries,
+  } = useAirPriceHistory(
+    originSeleccionado?.value,
+    destinationSeleccionado?.value,
+    historicalRefreshToken,
+  );
+
+  const priceHistorySeriesWithCurrent = useMemo(() => {
+    if (!originSeleccionado?.value || !destinationSeleccionado?.value) {
+      return priceHistorySeries;
+    }
+    const current = getCurrentAirMarketMinPrices(
+      rutas,
+      originSeleccionado.value,
+      destinationSeleccionado.value,
+    );
+    return mergeCurrentRatesIntoPriceHistory(
+      priceHistorySeries,
+      AIR_WEIGHT_TIERS,
+      current.pricesByTier,
+      {
+        currentCurrency: current.currency,
+        currentRowCount: current.rowCount,
+      },
+    );
+  }, [
+    priceHistorySeries,
+    rutas,
+    originSeleccionado?.value,
+    destinationSeleccionado?.value,
+  ]);
+
+  const setCotizadorSidebar = useAirCotizadorSidebarOptional()?.setSidebar;
+  const showStep2PriceHistoryPanel =
+    currentStep === 2 && !!rutaSeleccionada && routeMode === "recurrente";
+
+  useEffect(() => {
+    if (!setCotizadorSidebar) return;
+
+    if (!showStep2PriceHistoryPanel || !rutaSeleccionada) {
+      setCotizadorSidebar(null);
+      return;
+    }
+
+    setCotizadorSidebar(
+      <AirPriceHistoryStep2Panel
+        originLabel={rutaSeleccionada.origin}
+        destinationLabel={rutaSeleccionada.destination}
+        loading={loadingPriceHistory}
+        error={errorPriceHistory}
+        seriesResult={priceHistorySeriesWithCurrent}
+      />,
+    );
+
+    return () => {
+      setCotizadorSidebar(null);
+    };
+  }, [
+    setCotizadorSidebar,
+    showStep2PriceHistoryPanel,
+    rutaSeleccionada,
+    loadingPriceHistory,
+    errorPriceHistory,
+    priceHistorySeriesWithCurrent,
+  ]);
+
   // Scroll a rutas cuando aparecen
   useEffect(() => {
     if (rutasFiltradas.length > 0 && currentStep === 1) {
@@ -1639,7 +1855,22 @@ function QuoteAPITester({
 
   const handleOriginRecurrenteChange = (option: SelectOption | null) => {
     setOriginSeleccionado(option);
+    setRutaSeleccionada(null);
+    setSinTarifa(false);
+  };
+
+  const handlePaisRecurrenteChange = (option: OriginSelectOption | null) => {
+    setPaisSeleccionado(option);
+    setOriginSeleccionado(null);
     setDestinationSeleccionado(null);
+    setRutaSeleccionada(null);
+    setSinTarifa(false);
+  };
+
+  const handlePaisNRChange = (option: OriginSelectOption | null) => {
+    setPaisNR(option);
+    setOriginNR(null);
+    setDestNR(null);
     setRutaSeleccionada(null);
     setSinTarifa(false);
   };
@@ -3365,11 +3596,13 @@ function QuoteAPITester({
         project: {
           name: "AIR",
         },
-        customerReference: isSimulationMode
-          ? "Portal Created [AIR] - SIMULADOR"
-          : sinTarifa
-            ? "Portal Created [AIR] - PENDIENTE TARIFA"
-            : "Portal Created [AIR]",
+        customerReference:
+          customerReference.trim() ||
+          (isSimulationMode
+            ? "Portal Created [AIR] - SIMULADOR"
+            : sinTarifa
+              ? "Portal Created [AIR] - PENDIENTE TARIFA"
+              : "Portal Created [AIR]"),
         contact: {
           name: effectiveUsername,
         },
@@ -3946,11 +4179,13 @@ function QuoteAPITester({
         project: {
           name: "AIR",
         },
-        customerReference: isSimulationMode
-          ? "Portal Created [AIR-OVERALL] - SIMULADOR"
-          : sinTarifa
-            ? "Portal Created [AIR-OVERALL] - PENDIENTE TARIFA"
-            : "Portal-Created [AIR-OVERALL]",
+        customerReference:
+          customerReference.trim() ||
+          (isSimulationMode
+            ? "Portal Created [AIR-OVERALL] - SIMULADOR"
+            : sinTarifa
+              ? "Portal Created [AIR-OVERALL] - PENDIENTE TARIFA"
+              : "Portal Created [AIR-OVERALL]"),
         contact: {
           name: effectiveUsername,
         },
@@ -4105,6 +4340,21 @@ function QuoteAPITester({
         <div>
           <h2 className="qa-title">Cotización Aérea</h2>
         </div>
+      </div>
+
+      <div className="mb-3" style={{ maxWidth: 420 }}>
+        <label className="form-label fw-semibold" htmlFor="air-customer-ref">
+          Referencia de Cliente
+        </label>
+        <input
+          id="air-customer-ref"
+          type="text"
+          className="form-control"
+          value={customerReference}
+          onChange={(e) => setCustomerReference(e.target.value)}
+          placeholder="Ej: PO-12345 / Ref. interna"
+          maxLength={120}
+        />
       </div>
 
       {/* Selector de Cliente (Solo para modo ejecutivo) */}
@@ -4466,14 +4716,12 @@ function QuoteAPITester({
                   <div className="mb-4">
                     <div className="row g-3 mb-4">
                       <div className="col-md-6">
-                        <AirportSelectorAIR
-                          id="air-origin-recurrente"
-                          label={t("QuoteAIR.Origen")}
-                          icon=""
-                          value={originSeleccionado}
-                          onChange={handleOriginRecurrenteChange}
-                          options={opcionesOrigin}
-                          placeholder="Ingresa Aeropuerto o Código IATA"
+                        <CountryOriginSelector
+                          id="air-country-recurrente"
+                          label="País de origen"
+                          value={paisSeleccionado}
+                          onChange={handlePaisRecurrenteChange}
+                          options={recurrenteCountryOptions}
                           menuPlacement="bottom"
                         />
                       </div>
@@ -4485,23 +4733,59 @@ function QuoteAPITester({
                           value={destinationSeleccionado}
                           onChange={setDestinationSeleccionado}
                           options={opcionesDestination}
-                          placeholder={
-                            originSeleccionado
-                              ? "Ingresa Aeropuerto o Código IATA"
-                              : "Selecciona primero el origen"
-                          }
-                          isDisabled={!originSeleccionado}
+                          placeholder={paisSeleccionado ? "Ingresa Aeropuerto o Código IATA" : "Selecciona primero el país"}
+                          isDisabled={!paisSeleccionado}
                           menuPlacement="bottom"
                         />
                       </div>
+                      {destinationSeleccionado && (
+                      <div className="col-md-6">
+                        <AirportSelectorAIR
+                          id="air-origin-recurrente"
+                          label={t("QuoteAIR.Origen")}
+                          icon=""
+                          value={originSeleccionado}
+                          onChange={handleOriginRecurrenteChange}
+                          options={opcionesOriginPais}
+                          placeholder="Ingresa Aeropuerto o Código IATA"
+                          isDisabled={!destinationSeleccionado}
+                          menuPlacement="bottom"
+                        />
+                      </div>
+                      )}
                     </div>
 
                     {originSeleccionado && destinationSeleccionado && (
                       <div className="mt-4" ref={routesRef}>
-                        <div className="d-flex justify-content-between align-items-center mb-3">
-                          <h6 className="qa-section-label">
+                        <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                          <h6 className="qa-section-label mb-0">
                             Rutas Disponibles ({rutasFiltradas.length})
                           </h6>
+                          <div className="d-flex align-items-center gap-2 flex-wrap">
+                            {paisSeleccionado ? (
+                              <CountryRatesDownloadButton
+                                service="air"
+                                countryCode={paisSeleccionado.value}
+                                countryLabel={paisSeleccionado.label}
+                                destinationLabel={destinationSeleccionado.label}
+                                destinationCode={destinationSeleccionado.value}
+                                selectedOriginLabel={originSeleccionado.label}
+                                columns={COUNTRY_RATE_COLUMNS_AIR}
+                                rows={countryRatesRows}
+                                translationNs="QuoteAIR"
+                                disabled={countryRatesRows.length === 0}
+                              />
+                            ) : null}
+                            {rutasFiltradas.length > 0 ? (
+                              <AirPriceHistoryModal
+                                originLabel={originSeleccionado.label}
+                                destinationLabel={destinationSeleccionado.label}
+                                loading={loadingPriceHistory}
+                                error={errorPriceHistory}
+                                seriesResult={priceHistorySeriesWithCurrent}
+                              />
+                            ) : null}
+                          </div>
                         </div>
 
                         {rutasFiltradas.length === 0 ? (
@@ -4846,14 +5130,29 @@ function QuoteAPITester({
                   <div>
                     <div className="row g-3 mb-4">
                       <div className="col-md-6">
+                        <CountryOriginSelector
+                          id="air-country-nr"
+                          label="País de origen"
+                          value={paisNR}
+                          onChange={handlePaisNRChange}
+                          options={originIndexNR?.countries ?? []}
+                          menuPlacement="bottom"
+                        />
+                      </div>
+                      <div className="col-md-6">
                         <AirportSelectorAIR
                           id="air-origin-nr"
                           label={t("QuoteAIR.Origen")}
                           icon=""
                           value={originNR}
                           onChange={handleOriginNRChange}
-                          options={opcionesOrigin_NR}
-                          placeholder="Ingresa Aeropuerto o Código IATA"
+                          options={opcionesOriginPais}
+                          placeholder={
+                            paisNR
+                              ? "Ingresa Aeropuerto o Código IATA"
+                              : "Selecciona primero el país"
+                          }
+                          isDisabled={!paisNR}
                           menuPlacement="bottom"
                         />
                       </div>
@@ -5053,71 +5352,60 @@ function QuoteAPITester({
 
             {incoterm === "EXW" && (
               <div className="mb-4 bg-light p-3 rounded border">
-                {(() => {
-                  const originOpt = originSeleccionado ?? originNR;
-                  const originAirport = originOpt
-                    ? getAirportByOrigin(originOpt.value)
-                    : null;
-                  const activeCountryCode =
-                    originAirport?.countryCode?.toUpperCase() ?? null;
-                  const activeAirports = activeCountryCode
-                    ? (countryAirportsMap[activeCountryCode] ?? [])
-                    : [];
-                  const isCountryOrigin = activeAirports.length > 0;
-
-                  const nearbyAirports =
-                    isCountryOrigin && pickupCoords
-                      ? getNearestAirports(pickupCoords, activeAirports, 4)
-                      : [];
-                  const effectiveAirport = nearbyAirportSelected
-                    ? (nearbyAirports.find(
-                      (a) => a.value === nearbyAirportSelected.value,
-                    ) ??
-                      nearbyAirports[0] ??
-                      null)
-                    : (nearbyAirports[0] ?? null);
-
-                  let mapDestination: DestinationCoords | null = null;
-                  if (isCountryOrigin && effectiveAirport) {
-                    mapDestination = {
-                      lat: effectiveAirport.lat,
-                      lng: effectiveAirport.lng,
-                      name: effectiveAirport.label,
-                      code: originAirport?.iata ?? "",
-                    };
-                  } else if (originAirport) {
-                    mapDestination = {
-                      lat: originAirport.lat,
-                      lng: originAirport.lng,
-                      name: originAirport.name,
-                      code: originAirport.iata,
-                    };
+                {(originSeleccionado ?? originNR) &&
+                  exwResolvedDistanceKm != null && (
+                    <div className="alert alert-success py-2 px-3 mb-3 small">
+                      <i className="bi bi-geo-alt-fill me-2"></i>
+                      Aeropuerto asignado:{" "}
+                      <strong>
+                        {(originSeleccionado ?? originNR)?.label}
+                      </strong>
+                      {" · "}
+                      {exwResolvedDistanceKm.toFixed(0)} km desde la recogida
+                    </div>
+                  )}
+                {exwNearbyRatedAirports.length === 0 && pickupCoords && (
+                  <div className="alert alert-warning py-2 px-3 mb-3 small">
+                    No hay tarifas geolocalizables para esta dirección en el
+                    país seleccionado.
+                  </div>
+                )}
+                <CotizadorAddressMap
+                  value={pickupFromAddress}
+                  onChange={setPickupFromAddress}
+                  placeholder="Ingrese dirección de recogida"
+                  rows={2}
+                  pickupLabel={t("QuoteAIR.pickup")}
+                  deliveryValue={deliveryToAddressDerived}
+                  deliveryLabel={t("QuoteAIR.delivery")}
+                  onPickupCoordsChange={setPickupCoords}
+                  destinationCoords={
+                    exwMapDestination ??
+                    (() => {
+                      const originOpt = originSeleccionado ?? originNR;
+                      const airport = originOpt
+                        ? getAirportByOrigin(originOpt.value)
+                        : null;
+                      return airport
+                        ? {
+                            lat: airport.lat,
+                            lng: airport.lng,
+                            name: airport.name,
+                            code: airport.iata,
+                          }
+                        : null;
+                    })()
                   }
-
-                  const airportMiddleContent =
-                    isCountryOrigin && nearbyAirports.length >= 2 ? (
+                  middleContent={
+                    exwNearbyRatedAirports.length >= 2 ? (
                       <NearbyAirportSelector
-                        nearbyAirports={nearbyAirports}
+                        nearbyAirports={exwNearbyRatedAirports}
                         selectedAirport={nearbyAirportSelected}
                         onSelectAirport={setNearbyAirportSelected}
                       />
-                    ) : null;
-
-                  return (
-                    <CotizadorAddressMap
-                      value={pickupFromAddress}
-                      onChange={setPickupFromAddress}
-                      placeholder="Ingrese dirección de recogida"
-                      rows={2}
-                      pickupLabel={t("QuoteAIR.pickup")}
-                      deliveryValue={deliveryToAddressDerived}
-                      deliveryLabel={t("QuoteAIR.delivery")}
-                      onPickupCoordsChange={setPickupCoords}
-                      destinationCoords={mapDestination}
-                      middleContent={airportMiddleContent}
-                    />
-                  );
-                })()}
+                    ) : null
+                  }
+                />
               </div>
             )}
 
@@ -5357,6 +5645,16 @@ function QuoteAPITester({
               !sinTarifa && (
                 <WeightRangeAlert
                   validation={weightRangeValidation}
+                  pesoChargeable={pesoChargeable}
+                  pesoAirFreight={pesoAirFreight}
+                />
+              )}
+
+            {rutaSeleccionada &&
+              !sinTarifa &&
+              pesoAirFreight !== pesoChargeable &&
+              weightRangeValidation?.tienePrecio && (
+                <AirFreightMinWeightAlert
                   pesoChargeable={pesoChargeable}
                   pesoAirFreight={pesoAirFreight}
                 />

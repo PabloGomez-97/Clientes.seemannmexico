@@ -203,7 +203,7 @@ export const PDFTemplateLastMile: React.FC<PDFTemplateLastMileProps> = ({
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <img
             src={logoSrc || "/logo.png"}
-            alt="Seemann"
+            alt="Seemann México"
             style={{ width: "48px", height: "48px", objectFit: "contain" }}
           />
           <div>
@@ -703,7 +703,7 @@ export const PDFTemplateLastMile: React.FC<PDFTemplateLastMileProps> = ({
           color: C.sub,
         }}
       >
-        <span>Seemann Cloud · portalclientes.seemanngroup.com</span>
+        <span>Seemann Cloud · Seemann Group México</span>
         <span>{quoteNumber || "Draft"} - Última Milla</span>
         <span>Page 1 of 1</span>
       </div>

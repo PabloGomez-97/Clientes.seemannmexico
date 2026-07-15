@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useRef,
+  useCallback,
+  type MutableRefObject,
+} from "react";
 // Sin Linbis: no usamos OutletContext
 import { useAuth } from "../../auth/AuthContext";
 import { useAuditLog } from "../../hooks/useAuditLog";
@@ -227,7 +234,10 @@ function QuoteLASTMILE({
   preselectedOrigin,
   preselectedDestination,
   isEjecutivoMode = false,
-}: QuoteLastMileProps = {}) {
+  abandonRef,
+}: QuoteLastMileProps & {
+  abandonRef?: MutableRefObject<(() => void) | null>;
+} = {}) {
   // México: cotizaciones sin Linbis (solo JWT del portal)
   const {
     user,
@@ -240,9 +250,10 @@ function QuoteLASTMILE({
   const ejecutivo = user?.ejecutivo;
   const { registrarEvento } = useAuditLog();
   const { trackStart, trackStep, trackRouteSelected, trackComplete } =
-    useQuoteTracking("LASTMILE");
+    useQuoteTracking("LASTMILE", { abandonRef });
 
   const [loading, setLoading] = useState(false);
+  const [customerReference, setCustomerReference] = useState("");
   const [response, setResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -1422,9 +1433,10 @@ function QuoteLASTMILE({
       transitDays: null as number | null,
       project: { name: "TERRESTRE" },
       customerReference:
-        servicioSel && incotermSel
+        customerReference.trim() ||
+        (servicioSel && incotermSel
           ? `${servicioSel} ${incotermSel}`
-          : "Portal Created [LASTMILE] - PENDIENTE TARIFA",
+          : "Portal Created [LASTMILE] - PENDIENTE TARIFA"),
       contact: { name: effectiveUsername },
       origin: { name: origenSel.label },
       carrierBroker: { name: "X" },
@@ -2017,6 +2029,21 @@ function QuoteLASTMILE({
         <div>
           <h2 className="qa-title">Cotización Última Milla</h2>
         </div>
+      </div>
+
+      <div className="mb-3" style={{ maxWidth: 420 }}>
+        <label className="form-label fw-semibold" htmlFor="lm-customer-ref">
+          Referencia de Cliente
+        </label>
+        <input
+          id="lm-customer-ref"
+          type="text"
+          className="form-control"
+          value={customerReference}
+          onChange={(e) => setCustomerReference(e.target.value)}
+          placeholder="Ej: PO-12345 / Ref. interna"
+          maxLength={120}
+        />
       </div>
 
       {/* Selector de cliente (modo ejecutivo) */}

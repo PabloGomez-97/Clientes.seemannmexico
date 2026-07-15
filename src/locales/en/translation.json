@@ -92,7 +92,9 @@
       "item1": "New Asia-America route speeds up deliveries",
       "item2": "Digital ports reduce delays",
       "item3": "Robots in warehouses: 24/7 picking",
-      "item4": "Green transport: biofuels in aviation"
+      "item4": "Green transport: biofuels in aviation",
+      "viewAll": "View all news",
+      "readMore": "Read more"
     },
     "newsletter": {
       "title": "Subscribe to get the latest news and rates",
@@ -206,7 +208,9 @@
       "financial": "Financial",
       "operational": "Operational",
       "news": "News",
-      "novedades": "News"
+      "novedades": "News",
+      "settings": "Settings",
+      "help": "Help"
     },
     "userLayout": {
       "linbisTokenError": "Could not obtain Linbis token",
@@ -292,6 +296,55 @@
       "comparison": {
         "title": "Need help choosing?"
       }
+    },
+    "welcome": {
+      "greeting": "Hello, {{name}}",
+      "account": "Account {{account}}",
+      "kpiQuotes": "Quotes",
+      "kpiShipments": "Active shipments",
+      "kpiDocuments": "Documents"
+    },
+    "ejecutivo": {
+      "eyebrow": "Your team",
+      "title": "Your commercial executive",
+      "role": "Commercial executive",
+      "sendMessage": "Send message",
+      "call": "Call"
+    },
+    "servicesSection": {
+      "eyebrow": "Quoting",
+      "title": "Quote by modality"
+    },
+    "slideDynamic": {
+      "title": "You have {{count}} shipments in transit",
+      "subtitle": "Check the real-time status of your active operations.",
+      "button": "View my shipments"
+    },
+    "hero": {
+      "prevSlide": "Previous slide",
+      "nextSlide": "Next slide",
+      "goToSlide": "Go to slide {{n}}"
+    },
+    "quickActions": {
+      "title": "Quick actions",
+      "quote": {
+        "title": "New quote",
+        "desc": "Quote your shipment in seconds"
+      },
+      "track": {
+        "title": "Track shipment"
+      },
+      "myQuotes": {
+        "title": "My quotes",
+        "desc": "Review and manage your quotes"
+      },
+      "documents": {
+        "title": "My documents",
+        "desc": "Access your operational files"
+      },
+      "trackings": {
+        "title": "My shipments"
+      }
     }
   },
   "footer": {
@@ -305,7 +358,8 @@
           "features": "News and Updates",
           "pricing": "Tariffs",
           "integrations": "Containers",
-          "changelog": "Contact Us"
+          "changelog": "Contact Us",
+          "reportError": "Found an error?"
         }
       },
       "resources": {
@@ -880,7 +934,24 @@
     "repeatNoRoutes": "This quote cannot be repeated because there are no available routes currently.",
     "repeatNotPortal": "Only quotes created from the portal can be repeated.",
     "repeatNavigating": "Redirecting to quoter...",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "resendQuote": "Resend quote",
+    "resendModalTitle": "Resend quote",
+    "resendModalSubtitle": "Enter up to 5 emails. The PDF will be sent.",
+    "resendModalEmailsLabel": "Email addresses",
+    "resendAddRecipients": "Add recipients",
+    "resendSendPdf": "Send PDF",
+    "resendSending": "Sending...",
+    "resendMaxEmails": "Up to 5 emails",
+    "resendEmailPlaceholder": "Email {{index}}",
+    "resendAddEmail": "Add email",
+    "resendRemoveEmail": "Remove email",
+    "resendSuccess": "PDF sent successfully.",
+    "resendErrorNoEmails": "You must enter at least one email address.",
+    "resendErrorMaxEmails": "Maximum 5 email addresses.",
+    "resendErrorInvalid": "The email {{email}} is not valid.",
+    "resendErrorDuplicate": "Do not repeat email addresses.",
+    "resendErrorGeneric": "Could not send the email. Please try again."
   },
   "proveedor": {
     "login": {
@@ -1065,5 +1136,398 @@
     "errorPayload": "Could not generate the quotation payload.",
     "successConNumero": "Quotation {{numero}} generated successfully.",
     "successSinNumero": "Quotation generated successfully (downloading PDF)."
+  },
+  "promesas": {
+    "hero": {
+      "eyebrow": "Seemann Group",
+      "title": "Your cargo, our promise",
+      "subtitle": "Learn who we are, what we commit to you, and how we work across each logistics modality."
+    },
+    "tabs": {
+      "aria": "Promises sections",
+      "company": "Our company",
+      "commitments": "Commitments",
+      "services": "By modality"
+    },
+    "disclaimer": "Timelines, rates and conditions may vary depending on the operation, regulations and external factors. This information is for guidance only and does not constitute a guarantee of a specific outcome.",
+    "company": {
+      "storyHeadline": "Over three decades connecting businesses with the world",
+      "history": {
+        "title": "History",
+        "p1": "Seemann Group was born from the vast experience of its founders in insurance, reinsurance and international logistics, with more than 35 years of development.",
+        "p2": "Its strength lies in providing professional and technical advice to clients, always evaluating the best alternative to meet their objectives.",
+        "p3": "Throughout its trajectory, useful and versatile tools have been developed for different company sizes, allowing effective work with small, medium and large companies in Latin America, recently in the United States and soon in Europe."
+      },
+      "mission": {
+        "title": "Mission",
+        "p1": "Seemann Group is dedicated to international cargo transportation and freight forwarding, with a strong service vocation. We base our commercial proposal on customer satisfaction with the work provided.",
+        "p2": "We are a flexible organization prepared to face market changes, with professionals from various areas focused on service, working under pressure and oriented to change."
+      },
+      "vision": {
+        "title": "Vision",
+        "p1": "We seek to be a solid company worldwide, with relevant international expansion and greater coverage in strategic economies.",
+        "p2": "Internally, we continue developing continuous improvement processes that allow us to evaluate and optimize the quality of our service."
+      },
+      "values": {
+        "title": "Values",
+        "intro": "Among our company's corporate values are:",
+        "empathy": {
+          "title": "Empathy and customer orientation",
+          "description": "Our main objective is to deliver high-quality professional service, where customer satisfaction with the work performed is paramount."
+        },
+        "personalization": {
+          "title": "Personalization",
+          "description": "Knowledge and empathy with our clients, developing high-impact personalized solutions."
+        },
+        "responsibility": {
+          "title": "Responsibility",
+          "description": "With information management, commitments made and the treatment of operations as a whole."
+        },
+        "sincerity": {
+          "title": "Sincerity and transparency",
+          "description": "Commitment to providing reliable information in a timely manner."
+        },
+        "commitment": {
+          "title": "Commitment and proactivity",
+          "description": "In the search for solutions that provide optimization in our clients' operations."
+        },
+        "flexibility": {
+          "title": "Flexibility",
+          "description": "Being an organization oriented to changes, with quick adaptation to client and environment needs."
+        }
+      }
+    },
+    "commitments": {
+      "intro": "We work so you gain speed and efficiency on every shipment. These pillars guide our relationship with you:",
+      "clientTitle": "Our commitment to you",
+      "pillars": {
+        "global": {
+          "title": "Own global network",
+          "desc": "Direct presence in several countries: fewer intermediaries, faster coordination."
+        },
+        "anticipate": {
+          "title": "Anticipation",
+          "desc": "We work to identify documentary and customs risks before they affect your cargo."
+        },
+        "experience": {
+          "title": "35+ years of experience",
+          "desc": "Proven routes, consolidated processes and express solutions when you need them."
+        },
+        "support": {
+          "title": "Agile response",
+          "desc": "Support focused on resolving operational urgencies with the available team."
+        }
+      },
+      "clientItems": {
+        "item1": "Advise you professionally to choose the logistics alternative best suited to your objectives.",
+        "item2": "Maintain clear communication about the progress of your operations and required documentation.",
+        "item3": "Manage each shipment rigorously, safeguarding confidential information and agreed commitments.",
+        "item4": "Seek competitive and transparent commercial conditions, negotiated with carriers and partners.",
+        "item5": "Support you with a dedicated executive who knows your operation and can respond with agility."
+      }
+    },
+    "services": {
+      "pillsAria": "Service modalities",
+      "promisesTitle": "How we work in this modality",
+      "modalities": {
+        "sea": "Ocean",
+        "air": "Air",
+        "land": "Ground",
+        "customs": "Customs",
+        "multimodal": "Multimodal"
+      },
+      "sea": {
+        "hero": {
+          "title": "Ocean transport",
+          "subtitle": "Direct negotiation with carriers for competitive rates and better conditions: free days, drop-off and timely document issuance."
+        },
+        "features": {
+          "f1": {
+            "title": "Competitive rates",
+            "desc": "Direct negotiation with carriers for better commercial conditions and free days."
+          },
+          "f2": {
+            "title": "Worldwide coverage",
+            "desc": "Positioning in major and secondary ports with certified agents."
+          },
+          "f3": {
+            "title": "FCL and LCL",
+            "desc": "Solutions for full containers and consolidated cargo with operational flexibility."
+          }
+        },
+        "overview": "We commit to rigorous negotiation on maritime contracts, seeking competitive rates and favorable conditions on free days, drop-off and document issuance at destination.",
+        "promises": {
+          "item1": "Coordinate FCL, LCL and special cargo according to volume and commodity type.",
+          "item2": "Inform you about relevant shipment milestones and associated documentation.",
+          "item3": "Work with our network at origin and destination ports you require."
+        }
+      },
+      "air": {
+        "hero": {
+          "title": "Air transport",
+          "subtitle": "Express solutions for urgent, high-value or time-critical cargo, with access to major cargo airlines."
+        },
+        "features": {
+          "f1": {
+            "title": "Speed",
+            "desc": "Reduced transit times for urgent and high-value cargo."
+          },
+          "f2": {
+            "title": "Global network",
+            "desc": "Access to cargo airlines and direct routes at major hubs."
+          },
+          "f3": {
+            "title": "Special cargo",
+            "desc": "Experience in pharma, perishables, dangerous goods and oversize."
+          }
+        },
+        "overview": "We evaluate route, airline and conditions based on urgency and cargo characteristics, prioritizing options that balance time, cost and operational safety.",
+        "promises": {
+          "item1": "Review documentary and regulatory requirements before shipment.",
+          "item2": "Propose route alternatives when weight, size or product restrictions apply.",
+          "item3": "Maintain shipment visibility while information is available."
+        }
+      },
+      "land": {
+        "hero": {
+          "title": "Ground transport",
+          "subtitle": "Partnerships with certified carriers for pickup and delivery with agile, secure service and tracking when available."
+        },
+        "features": {
+          "f1": {
+            "title": "Regional coverage",
+            "desc": "Partnerships with local carriers in South America and North America."
+          },
+          "f2": {
+            "title": "Secure cargo",
+            "desc": "Security protocols and cargo insurance with certified partners."
+          },
+          "f3": {
+            "title": "Timely delivery",
+            "desc": "Proactive coordination to meet agreed deadlines."
+          }
+        },
+        "overview": "We coordinate pickup and delivery in operations involving ground transit, seeking optimal service conditions and timely delivery.",
+        "promises": {
+          "item1": "Adapt LTL or FTL solutions according to volume, route and deadlines.",
+          "item2": "Coordinate documentation required for ground transit.",
+          "item3": "Inform you about transport progress when the partner reports updates."
+        }
+      },
+      "customs": {
+        "hero": {
+          "title": "Customs service",
+          "subtitle": "Customs management with specialized teams for import, export and special regimes in Chile and international coordination."
+        },
+        "features": {
+          "f1": {
+            "title": "Technical advice",
+            "desc": "Guidance on documentary and regulatory requirements applicable to your operation."
+          },
+          "f2": {
+            "title": "Full clearance",
+            "desc": "Customs procedure management with progress tracking."
+          },
+          "f3": {
+            "title": "Compliance",
+            "desc": "Focus on transparency and correct goods declaration."
+          }
+        },
+        "overview": "We support you in customs procedures with teams familiar with current regulations, seeking to streamline clearance within the applicable legal framework.",
+        "promises": {
+          "item1": "Review documentation prior to arrival or shipment when applicable.",
+          "item2": "Inform you about customs procedure status in a timely manner.",
+          "item3": "Coordinate with transport and warehousing for an integrated operation."
+        }
+      },
+      "multimodal": {
+        "hero": {
+          "title": "Multimodal service",
+          "subtitle": "Route design combining ocean, air and ground under a single coordination to optimize time and cost."
+        },
+        "features": {
+          "f1": {
+            "title": "End-to-end route",
+            "desc": "A single point of contact for the entire logistics chain."
+          },
+          "f2": {
+            "title": "Optimization",
+            "desc": "Combination of modalities according to cost, deadline and cargo type."
+          },
+          "f3": {
+            "title": "Visibility",
+            "desc": "Centralized tracking of each leg of the operation."
+          }
+        },
+        "overview": "We design solutions integrating different modalities, centralizing coordination to simplify your foreign trade operation.",
+        "promises": {
+          "item1": "Propose multimodal schemes suited to your origin, destination and deadlines.",
+          "item2": "Coordinate transshipments and connections between modalities in advance.",
+          "item3": "Maintain a single point of contact throughout the operation."
+        }
+      }
+    },
+    "cta": {
+      "quote": "Request a quote",
+      "tracking": "Track shipments"
+    }
+  },
+  "contenedores": {
+    "title": "Container types",
+    "subtitle": "Technical reference for dimensions, capacities and maximum weights per common ISO ocean freight standards.",
+    "disclaimer": "Dimensions and weights may vary by carrier, manufacturer and build year. Use this information as an operational reference.",
+    "imageHint": "Upload container images to R2 under /contenedores/{type}.png (e.g. /contenedores/20gp.png).",
+    "labels": {
+      "dimension": "Dimension",
+      "external": "External",
+      "internal": "Internal",
+      "length": "Length",
+      "width": "Width",
+      "height": "Height",
+      "door": "Door",
+      "maxGross": "Max gross weight",
+      "tare": "Tare",
+      "payload": "Payload",
+      "volume": "Volume"
+    },
+    "types": {
+      "20gp": {
+        "name": "20' GP (Dry Standard)",
+        "description": "20-foot dry container. Most used for general cargo and medium-volume exports."
+      },
+      "40gp": {
+        "name": "40' GP (Dry Standard)",
+        "description": "40-foot dry container with standard height. Ideal for large volumes at lower cost per m³."
+      },
+      "40hq": {
+        "name": "40' HQ / HC (High Cube)",
+        "description": "40-foot container with extra height (+30 cm). Widely used in FCL for greater cubic capacity."
+      },
+      "40nor": {
+        "name": "40' NOR (Non-Operating Reefer)",
+        "description": "Reefer container used as dry when temperature control is not required. Reduced internal volume."
+      },
+      "45hc": {
+        "name": "45' HC (High Cube)",
+        "description": "45-foot high cube container. Maximum capacity on routes that allow it."
+      },
+      "20rf": {
+        "name": "20' RF (Reefer)",
+        "description": "20-foot refrigerated container for perishable or temperature-controlled cargo."
+      },
+      "40rh": {
+        "name": "40' RH (Reefer High Cube)",
+        "description": "40-foot high cube reefer. Greater volume for consolidated refrigerated cargo."
+      },
+      "20ot": {
+        "name": "20' OT (Open Top)",
+        "description": "Open top container with tarpaulin roof. For cargo that cannot enter through the door or requires top loading."
+      },
+      "40fr": {
+        "name": "40' FR (Flat Rack)",
+        "description": "40-foot flat rack for oversize cargo, machinery or project cargo."
+      }
+    }
+  },
+  "contactenos": {
+    "title": "Contact Us",
+    "kicker": "Commercial support",
+    "lead": "For quotes, shipments in progress or day-to-day questions, your executive is usually the fastest route. For general company matters, you can also reach Seemann Group directly.",
+    "executiveTitle": "Your executive",
+    "executiveText": "They know your account and coordinate your shipments.",
+    "executiveRole": "Commercial executive",
+    "writeExecutive": "Send email",
+    "callExecutive": "Call",
+    "noExecutive": "We couldn't find an executive assigned to your account. Write to contacto@seemanngroup.com and we'll help.",
+    "generalTitle": "Head office",
+    "generalText": "If you prefer a general channel or don't have your executive's details handy:",
+    "labelEmail": "Email",
+    "labelPhone": "Phone",
+    "labelAddress": "Address",
+    "visitWebsite": "Corporate website",
+    "portalBug": "Something wrong with the portal?",
+    "portalBugLink": "Report an error",
+    "activeAccount": "Account: {{account}}",
+    "asideText": "Business hours: Monday to Friday, 8:30AM–5:30PM (Chile time)."
+  },
+  "reportarError": {
+    "title": "Found an error?",
+    "kicker": "Portal support",
+    "lead": "Sometimes a button doesn't respond, a figure doesn't add up, or a screen gets stuck loading. Tell us what you saw and we'll look into it.",
+    "helpTitle": "What helps us fix it",
+    "helpText": "No need for a long report. A couple of lines and a screenshot if you have one is usually enough.",
+    "examples": {
+      "item1": "What you were doing (quoting, tracking, downloading a PDF…).",
+      "item2": "What you expected to happen vs. what actually happened.",
+      "item3": "Approximate time, if you remember.",
+      "item4": "Screenshot if handy — not required."
+    },
+    "contextLabel": "This will be included in your email",
+    "contextAccount": "Active account: {{account}}",
+    "contextNote": "So you don't have to look this up when writing.",
+    "asideLabel": "Direct contact",
+    "asideName": "Platform team",
+    "sendEmail": "Compose email",
+    "copyEmail": "Copy address",
+    "copied": "Copied",
+    "footnote": "We reply on business days. If it's urgent for an operation in progress, also notify your executive.",
+    "mailSubject": "Client portal error",
+    "mailGreeting": "Hi,",
+    "mailBodyDescribe": "I noticed something odd in the portal:",
+    "mailBodyUrl": "Page",
+    "mailAccount": "Account",
+    "mailUser": "User",
+    "mailSignOff": "Thanks."
+  },
+  "itinerarioPage": {
+    "title": "Find an itinerary",
+    "subtitle": "Check available routes by modality, origin and destination."
+  },
+  "pageBanner": {
+    "airShipments": {
+      "badge": "Air Operations",
+      "title": "Your air shipments",
+      "description": "View and manage your air operations. From here you can check status, track shipments and review details for each delivery."
+    },
+    "oceanShipments": {
+      "badge": "Ocean Operations",
+      "title": "Your ocean shipments",
+      "description": "View and manage your ocean operations. Check status, track containers and review every detail of your shipments."
+    },
+    "groundShipments": {
+      "badge": "Ground Operations",
+      "title": "Your ground shipments",
+      "description": "Check the status and details of your ground operations. Review routes, carriers and delivery dates."
+    },
+    "quotes": {
+      "badge": "Quotes",
+      "title": "Your quotes",
+      "description": "Review the details, validity and status of all your quotes. From here you can check rates and request new quotes."
+    },
+    "specialQuote": {
+      "badge": "Premium Service",
+      "title": "Need a special quote?",
+      "description": "Oversized cargo, project cargo, temperature-controlled goods, hazardous materials or other special conditions. Your executive will find the best solution."
+    },
+    "shippingOrder": {
+      "badge": "Pre-Operational Stage",
+      "title": "Active operations",
+      "description": "The information shown here is tentative and may change. You will receive your AWB or HBL early so you can start tracking your cargo before the operation appears in the shipment views."
+    },
+    "airTracking": {
+      "badge": "Air tracking",
+      "title": "Tracking service for air cargo",
+      "description": "<p>Enter <strong>exactly the AWB provided by your airline</strong>. An incorrect number will consume credits unnecessarily.</p><p>Don't know your AWB? Check it in <highlight>Air Operations</highlight>.</p>"
+    },
+    "oceanTracking": {
+      "badge": "Ocean tracking",
+      "title": "Tracking service for ocean cargo",
+      "description": "<p>Enter the <strong>container or booking number</strong> provided by your carrier. The system will automatically detect the corresponding carrier.</p><p>Don't know your container? Check it in <highlight>Ocean Operations</highlight>.</p>"
+    },
+    "myDocuments": {
+      "badge": "My Documents",
+      "title": "Documentation",
+      "description": "View and manage all documents related to your shipments. Here you'll find invoices, air waybills, manifests and more — all in one place for your convenience."
+    }
   }
 }

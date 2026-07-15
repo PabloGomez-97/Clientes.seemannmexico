@@ -1,5 +1,10 @@
 // src/hooks/useQuoteTracking.ts — Hook for tracking quote behavior events
-import { useRef, useCallback, useEffect } from "react";
+import {
+  useRef,
+  useCallback,
+  useEffect,
+  type MutableRefObject,
+} from "react";
 import { useAuth } from "../auth/AuthContext";
 
 // ── Event Types ──
@@ -28,25 +33,36 @@ export interface QuoteTrackingPayload {
   metadata?: Record<string, unknown>;
 }
 
-// ── API Base URL ──
+export interface QuoteTrackingSubject {
+  clientEmail: string;
+  clientUsername: string;
+}
+
+export interface UseQuoteTrackingOptions {
+  /** When ejecutivo quotes on behalf of a client, attribute events to the client. */
+  subject?: QuoteTrackingSubject | null;
+  /** Parent can call abandon explicitly before unmount (e.g. "Volver"). */
+  abandonRef?: MutableRefObject<(() => void) | null>;
+  /** Delay QUOTE_STARTED until a client is selected (ejecutivo mode). */
+  waitForSubject?: boolean;
+}
+
+// ── API Base URL (mismo origen en prod; proxy local en dev) ──
 const API_BASE_URL =
-  import.meta.env.MODE === "development"
-    ? "http://localhost:4000"
-    : "https://portalclientes.seemanngroup.com";
+  import.meta.env.MODE === "development" ? "http://localhost:4000" : "";
+
+type TrackingEnvelope = QuoteTrackingPayload & {
+  clientEmail: string;
+  clientUsername: string;
+  sessionId: string;
+  timestamp: string;
+};
 
 /**
  * Fire-and-forget POST to the behavior tracking endpoint.
- * Never throws — failures are silently logged.
+ * Never throws — failures are logged in development.
  */
-function sendTrackingEvent(
-  payload: QuoteTrackingPayload & {
-    clientEmail: string;
-    clientUsername: string;
-    sessionId: string;
-    timestamp: string;
-  },
-  token: string | null,
-) {
+function sendTrackingEvent(payload: TrackingEnvelope, token: string | null) {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -57,88 +73,156 @@ function sendTrackingEvent(
     headers,
     body: JSON.stringify(payload),
     keepalive: true,
-  }).catch(() => {
-    /* silent – tracking must never break the main flow */
+  }).catch((err) => {
+    if (import.meta.env.DEV) {
+      console.warn("[quote-tracking] POST failed:", err);
+    }
   });
 }
 
-/**
- * Generate a short session id (not crypto-grade, just for grouping).
- */
+function sendTrackingBeacon(payload: TrackingEnvelope, token: string | null) {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  fetch(`${API_BASE_URL}/api/behavior-tracking`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload),
+    keepalive: true,
+  }).catch((err) => {
+    if (import.meta.env.DEV) {
+      console.warn("[quote-tracking] pagehide POST failed:", err);
+    }
+  });
+}
+
 function generateSessionId(): string {
   return `qs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 /**
  * Hook that provides tracking functions scoped to a single quote session.
- *
- * Usage:
- *   const { trackStart, trackStep, trackRouteSelected, trackComplete, trackAbandon } = useQuoteTracking("AIR");
  */
-export function useQuoteTracking(quoteType: QuoteType) {
+export function useQuoteTracking(
+  quoteType: QuoteType,
+  options: UseQuoteTrackingOptions = {},
+) {
   const { user, token } = useAuth();
   const sessionId = useRef(generateSessionId());
   const startedRef = useRef(false);
   const completedRef = useRef(false);
+  const abandonedRef = useRef(false);
   const lastStepRef = useRef<QuoteStepInfo | null>(null);
   const lastStepKeyRef = useRef<string | null>(null);
 
-  const send = useCallback(
-    (payload: QuoteTrackingPayload) => {
-      if (!user) return;
-      sendTrackingEvent(
-        {
-          ...payload,
-          clientEmail: user.email,
-          clientUsername: user.username,
-          sessionId: sessionId.current,
-          timestamp: new Date().toISOString(),
-        },
-        token,
-      );
+  const userRef = useRef(user);
+  const tokenRef = useRef(token);
+  const subjectRef = useRef(options.subject);
+  userRef.current = user;
+  tokenRef.current = token;
+  subjectRef.current = options.subject;
+
+  const resolveSubject = useCallback((): QuoteTrackingSubject | null => {
+    const subject = subjectRef.current;
+    if (subject?.clientEmail && subject.clientUsername) {
+      return {
+        clientEmail: subject.clientEmail,
+        clientUsername: subject.clientUsername,
+      };
+    }
+    const u = userRef.current;
+    if (!u?.email || !u.username) return null;
+    return { clientEmail: u.email, clientUsername: u.username };
+  }, []);
+
+  const buildEnvelope = useCallback(
+    (payload: QuoteTrackingPayload): TrackingEnvelope | null => {
+      const subject = resolveSubject();
+      if (!subject) return null;
+      return {
+        ...payload,
+        clientEmail: subject.clientEmail,
+        clientUsername: subject.clientUsername,
+        sessionId: sessionId.current,
+        timestamp: new Date().toISOString(),
+      };
     },
-    [user, token],
+    [resolveSubject],
   );
 
-  /** Call once when the user enters the quote view. */
+  const send = useCallback(
+    (payload: QuoteTrackingPayload) => {
+      const envelope = buildEnvelope(payload);
+      if (!envelope) return false;
+      sendTrackingEvent(envelope, tokenRef.current);
+      return true;
+    },
+    [buildEnvelope],
+  );
+
+  const sendAbandon = useCallback(
+    (useBeacon = false) => {
+      if (
+        !startedRef.current ||
+        completedRef.current ||
+        abandonedRef.current
+      ) {
+        return;
+      }
+      abandonedRef.current = true;
+      const envelope = buildEnvelope({
+        event: "QUOTE_ABANDONED",
+        quoteType,
+        step: lastStepRef.current || undefined,
+      });
+      if (!envelope) return;
+      if (useBeacon) {
+        sendTrackingBeacon(envelope, tokenRef.current);
+      } else {
+        sendTrackingEvent(envelope, tokenRef.current);
+      }
+    },
+    [buildEnvelope, quoteType],
+  );
+
   const trackStart = useCallback(() => {
     if (startedRef.current) return;
-    startedRef.current = true;
-    send({ event: "QUOTE_STARTED", quoteType });
-  }, [send, quoteType]);
+    if (options.waitForSubject && !subjectRef.current) return;
+    const sent = send({ event: "QUOTE_STARTED", quoteType });
+    if (sent) startedRef.current = true;
+  }, [send, quoteType, options.waitForSubject]);
 
-  /** Call when the user progresses to a new meaningful step. */
   const trackStep = useCallback(
     (step: QuoteStepInfo, metadata?: Record<string, unknown>) => {
       const key = `${step.stepNumber}`;
-      if (key === lastStepKeyRef.current) return; // debounce same step
+      if (key === lastStepKeyRef.current) return;
       lastStepKeyRef.current = key;
       lastStepRef.current = step;
+      if (!startedRef.current) trackStart();
       send({ event: "QUOTE_STEP_CHANGED", quoteType, step, metadata });
     },
-    [send, quoteType],
+    [send, quoteType, trackStart],
   );
 
-  /** Call when the user selects a route (origin/destination). */
   const trackRouteSelected = useCallback(
     (
       origin: string,
       destination: string,
       metadata?: Record<string, unknown>,
     ) => {
-      // Auto-reset session if the previous quote was completed.
-      // This ensures that consecutive quotes within the same component
-      // mount are tracked as separate sessions.
       if (completedRef.current) {
         sessionId.current = generateSessionId();
         startedRef.current = false;
         completedRef.current = false;
+        abandonedRef.current = false;
         lastStepRef.current = null;
         lastStepKeyRef.current = null;
-        // Start a new session automatically
         send({ event: "QUOTE_STARTED", quoteType });
         startedRef.current = true;
       }
+      if (!startedRef.current) trackStart();
       send({
         event: "QUOTE_ROUTE_SELECTED",
         quoteType,
@@ -146,22 +230,28 @@ export function useQuoteTracking(quoteType: QuoteType) {
         metadata,
       });
     },
-    [send, quoteType],
+    [send, quoteType, trackStart],
   );
 
-  /** Call when the quote is successfully completed. */
   const trackComplete = useCallback(
     (metadata?: Record<string, unknown>) => {
+      if (completedRef.current) return;
       completedRef.current = true;
       send({ event: "QUOTE_COMPLETED", quoteType, metadata });
     },
     [send, quoteType],
   );
 
-  /** Call explicitly or on unmount when the quote was started but not completed. */
   const trackAbandon = useCallback(
     (metadata?: Record<string, unknown>) => {
-      if (!startedRef.current || completedRef.current) return;
+      if (
+        !startedRef.current ||
+        completedRef.current ||
+        abandonedRef.current
+      ) {
+        return;
+      }
+      abandonedRef.current = true;
       send({
         event: "QUOTE_ABANDONED",
         quoteType,
@@ -172,28 +262,26 @@ export function useQuoteTracking(quoteType: QuoteType) {
     [send, quoteType],
   );
 
-  // Auto-detect abandon on unmount
   useEffect(() => {
+    trackStart();
+  }, [trackStart, options.subject?.clientEmail]);
+
+  useEffect(() => {
+    if (!options.abandonRef) return;
+    options.abandonRef.current = trackAbandon;
     return () => {
-      if (startedRef.current && !completedRef.current) {
-        // Use the ref values directly in cleanup
-        if (!user) return;
-        sendTrackingEvent(
-          {
-            event: "QUOTE_ABANDONED",
-            quoteType,
-            step: lastStepRef.current || undefined,
-            clientEmail: user.email,
-            clientUsername: user.username,
-            sessionId: sessionId.current,
-            timestamp: new Date().toISOString(),
-          },
-          token,
-        );
-      }
+      options.abandonRef!.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [options.abandonRef, trackAbandon]);
+
+  useEffect(() => {
+    const onPageHide = () => sendAbandon(true);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      sendAbandon(false);
+    };
+  }, [sendAbandon]);
 
   return {
     trackStart,

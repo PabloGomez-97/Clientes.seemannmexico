@@ -35,6 +35,13 @@ interface MenuSection {
   items: MenuItem[];
 }
 
+interface BottomMenuItem {
+  path: string;
+  name: string;
+  icon: string;
+  external?: boolean;
+}
+
 // Design tokens - Enterprise Dark + Brand
 const colors = {
   bg: "#232f3e",
@@ -157,6 +164,20 @@ function Sidebar({
       //   },
       // ],
       items: [],
+    },
+  ];
+
+  const bottomMenuItems: BottomMenuItem[] = [
+    {
+      path: "/settings",
+      name: t("home.sidebar.settings"),
+      icon: "fa fa-cog",
+    },
+    {
+      path: "https://www.seemanngroup.com/",
+      name: t("home.sidebar.help"),
+      icon: "fa fa-question-circle",
+      external: true,
     },
   ];
 
@@ -588,6 +609,91 @@ function Sidebar({
             </div>
           ))}
         </nav>
+
+        {/* Configuración y Ayuda — al final, encima de colapsar menú */}
+        {(!isMobile || !isCollapsed) && (
+          <div
+            style={{
+              padding: isCollapsed && !isMobile ? "8px 0" : "8px 0 4px",
+              flexShrink: 0,
+            }}
+          >
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {bottomMenuItems.map((item) => {
+                const itemKey = `bottom-${item.path}`;
+                const isItemActive = !item.external && isActive(item.path);
+                const isHovered = hoveredItem === itemKey;
+
+                return (
+                  <li key={item.path}>
+                    <a
+                      href={item.path}
+                      target={item.external ? "_blank" : undefined}
+                      rel={item.external ? "noopener noreferrer" : undefined}
+                      onClick={(e) => {
+                        if (item.external) {
+                          if (isMobile) onCloseMobile();
+                          return;
+                        }
+                        navigateFromSidebar(e, item.path);
+                      }}
+                      title={isCollapsed && !isMobile ? item.name : undefined}
+                      onMouseEnter={() => setHoveredItem(itemKey)}
+                      onMouseLeave={() => setHoveredItem(null)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        textDecoration: "none",
+                        color: isItemActive
+                          ? colors.text
+                          : isHovered
+                            ? colors.text
+                            : colors.textMuted,
+                        padding:
+                          isCollapsed && !isMobile ? "13px 0" : "11px 12px",
+                        justifyContent:
+                          isCollapsed && !isMobile ? "center" : "flex-start",
+                        gap: isCollapsed && !isMobile ? "0" : "10px",
+                        cursor: "pointer",
+                        transition:
+                          "color 0.18s ease, background-color 0.18s ease",
+                        backgroundColor: isItemActive
+                          ? "rgba(255, 255, 255, 0.08)"
+                          : isHovered
+                            ? colors.bgHover
+                            : "transparent",
+                        fontSize: "14.5px",
+                        fontWeight: isItemActive ? "600" : "400",
+                        margin:
+                          isCollapsed && !isMobile ? "4px 10px" : "2px 8px",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <i
+                        className={item.icon}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: "20px",
+                          height: "20px",
+                          fontSize: "14px",
+                          textAlign: "center",
+                          flexShrink: 0,
+                        }}
+                      />
+                      {(!isCollapsed || isMobile) && (
+                        <span style={{ flex: 1, fontSize: "14.5px" }}>
+                          {item.name}
+                        </span>
+                      )}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         {/* Bottom toggle — desktop siempre; móvil solo con menú abierto */}
         {(!isMobile || !isCollapsed) && (

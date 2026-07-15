@@ -14,7 +14,7 @@ import UserLayout from "./layouts/UserLayout";
 import ProveedorLayout from "./layouts/ProveedorLayout";
 
 // Home Page
-import Home from "./components/Sidebar/Home";
+import Home from "./components/cliente/home/Home";
 
 // Admin Views
 import UsersManagement from "./components/administrador/Administracion-Cuentas/users-management";
@@ -74,6 +74,11 @@ import MisDocumentosCliente from "./components/Sidebar/MisDocumentosCliente";
 import PrivacyPolicy from "./components/Footer/PrivacyPolicy";
 import TermsOfService from "./components/Footer/TermsOfService";
 import CookiesSettings from "./components/Footer/CookiesSettings";
+import Contenedores from "./components/Footer/info/Contenedores";
+import Contactenos from "./components/Footer/info/Contactenos";
+import ItinerarioPage from "./components/Footer/info/ItinerarioPage";
+import ReportarError from "./components/Footer/info/ReportarError";
+import PromesasPage from "./components/cliente/home/promesas/PromesasPage";
 
 // Proveedor Views
 import HomeProveedores from "./components/Proveedores/Homeproveedores";
@@ -287,6 +292,11 @@ function App() {
           />
           <Route path="novedades" element={<Novedades />} />
           <Route path="mis-documentos" element={<MisDocumentosCliente />} />
+          <Route path="promesas" element={<PromesasPage />} />
+          <Route path="contenedores" element={<Contenedores />} />
+          <Route path="contactenos" element={<Contactenos />} />
+          <Route path="reportar-error" element={<ReportarError />} />
+          <Route path="itinerario" element={<ItinerarioPage />} />
         </Route>
 
         {/* Rutas públicas legales */}

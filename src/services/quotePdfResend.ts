@@ -1,0 +1,1 @@
+export const MAX_QUOTE_RESEND_RECIPIENTS = 5;

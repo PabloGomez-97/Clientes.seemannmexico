@@ -1,6 +1,6 @@
 /**
  * Template HTML para notificación de cotización marítima FCL generada por cliente.
- * Minimalista, responsive, con branding Seemann Group.
+ * Minimalista, responsive, con branding Seemann Group México.
  */
 
 export interface FclQuoteEmailData {
@@ -112,7 +112,7 @@ export function buildFclQuoteEmailHTML(data: FclQuoteEmailData): string {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Nueva ${tipo} Marítima FCL - Seemann Group</title>
+  <title>Nueva ${tipo} Marítima FCL - Seemann Group México</title>
   <style>
     @media only screen and (max-width: 620px) {
       .card { width: 100% !important; min-width: 0 !important; }
@@ -139,7 +139,7 @@ export function buildFclQuoteEmailHTML(data: FclQuoteEmailData): string {
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td>
-                    <img src="${LOGO_URL}" alt="Seemann Group" width="130" style="display:block;max-width:130px;height:auto;" />
+                    <img src="${LOGO_URL}" alt="Seemann Group México" width="130" style="display:block;max-width:130px;height:auto;" />
                   </td>
                   <td align="right" style="vertical-align:middle;">
                     <span style="color:${C.fcl};font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;">${tipo} Marítima FCL</span>
@@ -217,7 +217,7 @@ export function buildFclQuoteEmailHTML(data: FclQuoteEmailData): string {
             <td class="card-footer" style="background-color:${C.bgLight};padding:16px 32px;border-top:1px solid ${C.border};">
               <p style="margin:0;font-size:11px;color:${C.muted};text-align:center;line-height:1.5;">
                 Este correo fue generado automáticamente por el
-                <a href="${PORTAL_URL}" style="color:${C.primary};text-decoration:none;font-weight:600;">Portal de Clientes — Seemann Group</a>.
+                <a href="${PORTAL_URL}" style="color:${C.primary};text-decoration:none;font-weight:600;">Portal de Clientes — Seemann Group México</a>.
               </p>
             </td>
           </tr>

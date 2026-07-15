@@ -149,7 +149,7 @@ export const PDFTemplateFCL: React.FC<PDFTemplateFCLProps> = ({
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <img
             src={logoSrc || "/logo.png"}
-            alt="Seemann"
+            alt="Seemann México"
             style={{ width: "48px", height: "48px", objectFit: "contain" }}
           />
           <div>
@@ -704,7 +704,7 @@ export const PDFTemplateFCL: React.FC<PDFTemplateFCLProps> = ({
           color: C.sub,
         }}
       >
-        <span>Seemann Cloud · portalclientes.seemanngroup.com</span>
+        <span>Seemann Cloud · Seemann Group México</span>
         <span>
           {quoteNumber || "Draft"}
           {company ? ` - ${company}` : ""}
