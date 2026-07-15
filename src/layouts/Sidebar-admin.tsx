@@ -172,32 +172,6 @@ function SidebarAdmin({
         },
       ],
     },
-    {
-      title: "Reportes",
-      items: [
-        {
-          path: "/admin/reporteria",
-          name: "Reportes",
-          icon: "fa fa-chart-bar",
-          subItems: [
-            {
-              path: "/admin/reporteria",
-              name: "Reportes LINBIS",
-            },
-            {
-              path: "/admin/reportexecutive",
-              name: "Reporte de Cotizaciones",
-              badge: { text: "CHIEF", type: "admin" as const },
-            },
-            {
-              path: "/admin/reportoperational",
-              name: "Reporte de Facturaciones",
-              badge: { text: "CHIEF", type: "admin" as const },
-            },
-          ],
-        },
-      ],
-    },
 
     {
       items: [

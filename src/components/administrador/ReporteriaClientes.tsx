@@ -1,28 +1,12 @@
 // src/components/administrador/ReporteriaClientes.tsx — Client portal view for ejecutivos
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useTranslation } from "react-i18next";
-import {
-  useOutletContext,
-  useParams,
-  useNavigate,
-  useLocation,
-} from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { ClientOverrideProvider } from "../../contexts/ClientOverrideContext";
-import AirShipmentsView from "../shipments/AirShipmentsView";
-import OceanShipmentsView from "../shipments/OceanShipmentsView";
-import GroundShipmentsView from "../shipments/GroundShipmentsView";
-import EXWChargesView from "./Cobros-EXW/EXWChargesView";
 import QuotesView from "../Sidebar/QuotesView";
 import ClientTrackingView from "./ClientTrackingView";
 import { ReporteriaClientesProvider } from "../../contexts/ReporteriaClientesContext";
 import SettingsClient from "../settings/SettingsClient";
-
-interface OutletContext {
-  accessToken: string;
-  refreshAccessToken: () => Promise<string>;
-  onLogout: () => void;
-}
 
 interface Cliente {
   id: string;
@@ -35,17 +19,11 @@ interface Cliente {
 }
 
 interface ReporteriaClientesLocationState {
-  targetTab?:
-    | "air"
-    | "ocean"
-    | "ground"
-    | "quotes"
-    | "exw"
-    | "tracking"
-    | "settings";
-  shipmentFilterNumber?: string;
+  targetTab?: "quotes" | "tracking" | "settings" | "air" | "ocean" | "ground" | "exw";
   quoteFilterNumber?: string;
 }
+
+const LEGACY_SHIPMENT_TABS = new Set(["air", "ocean", "ground", "exw"]);
 
 /** Expand users with multiple company names into separate list entries */
 function expandClients(rawClients: Cliente[]): Cliente[] {
@@ -101,9 +79,7 @@ const FONT =
   '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif';
 
 function ReporteriaClientes() {
-  useOutletContext<OutletContext>(); // validate outlet context exists
   const { token } = useAuth();
-  const { t } = useTranslation();
   const { clientUsername } = useParams<{ clientUsername?: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -115,20 +91,15 @@ function ReporteriaClientes() {
 
   // Selected client
   const [selectedClient, setSelectedClient] = useState<Cliente | null>(null);
-  const [showAllExw, setShowAllExw] = useState(false);
-  const [activeTab, setActiveTab] = useState<
-    "air" | "ocean" | "ground" | "quotes" | "exw" | "tracking" | "settings"
-  >("air");
+  const [activeTab, setActiveTab] = useState<"quotes" | "tracking" | "settings">(
+    "quotes",
+  );
   const [quoteFilterNumber, setQuoteFilterNumber] = useState<
-    string | undefined
-  >();
-  const [shipmentFilterNumber, setShipmentFilterNumber] = useState<
     string | undefined
   >();
   const [trackingInitialTab, setTrackingInitialTab] = useState<"air" | "ocean">(
     "air",
   );
-  const [opsOpen, setOpsOpen] = useState(false);
   const [sortMode, setSortMode] = useState<"az" | "recent" | "subcuentas">(
     "az",
   );
@@ -174,11 +145,8 @@ function ReporteriaClientes() {
   // When a client is selected, show their portal view
   const handleSelectClient = useCallback(
     (cliente: Cliente) => {
-      setShowAllExw(false);
       setSelectedClient(cliente);
-      setActiveTab("air");
-      setOpsOpen(false);
-      setShipmentFilterNumber(undefined);
+      setActiveTab("quotes");
       setQuoteFilterNumber(undefined);
       navigate(
         `/admin/reporteriaclientes/${encodeURIComponent(cliente.username)}`,
@@ -188,15 +156,7 @@ function ReporteriaClientes() {
     [navigate],
   );
 
-  const handleSelectAllExw = useCallback(() => {
-    setSelectedClient(null);
-    setShowAllExw(true);
-  }, []);
-
-  // Go back to list — only navigate; the useEffect below clears selectedClient
   const handleBack = () => {
-    setShowAllExw(false);
-    setOpsOpen(false);
     navigate("/admin/reporteriaclientes", { replace: true });
   };
 
@@ -207,7 +167,6 @@ function ReporteriaClientes() {
   useEffect(() => {
     if (!clientUsername) {
       setSelectedClient(null);
-      setShipmentFilterNumber(undefined);
       setQuoteFilterNumber(undefined);
       return;
     }
@@ -221,8 +180,7 @@ function ReporteriaClientes() {
         ? prev
         : match,
     );
-    setActiveTab("air");
-    setShipmentFilterNumber(undefined);
+    setActiveTab("quotes");
     setQuoteFilterNumber(undefined);
   }, [clientUsername, clientes, loading]);
 
@@ -231,13 +189,20 @@ function ReporteriaClientes() {
     const state = location.state as ReporteriaClientesLocationState | null;
     if (!state) return;
 
-    setShipmentFilterNumber(undefined);
     setQuoteFilterNumber(undefined);
     if (state.targetTab) {
-      setActiveTab(state.targetTab);
-    }
-    if (typeof state.shipmentFilterNumber === "string") {
-      setShipmentFilterNumber(state.shipmentFilterNumber);
+      if (LEGACY_SHIPMENT_TABS.has(state.targetTab)) {
+        setActiveTab("tracking");
+        if (state.targetTab === "air" || state.targetTab === "ocean") {
+          setTrackingInitialTab(state.targetTab);
+        }
+      } else if (
+        state.targetTab === "quotes" ||
+        state.targetTab === "tracking" ||
+        state.targetTab === "settings"
+      ) {
+        setActiveTab(state.targetTab);
+      }
     }
     if (typeof state.quoteFilterNumber === "string") {
       setQuoteFilterNumber(state.quoteFilterNumber);
@@ -339,99 +304,6 @@ function ReporteriaClientes() {
           </div>
           <div style={{ fontSize: 13, color: "#6b7280" }}>{error}</div>
         </div>
-      </div>
-    );
-  }
-
-  if (showAllExw) {
-    return (
-      <div style={{ fontFamily: FONT }}>
-        <button
-          onClick={handleBack}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "8px 16px",
-            background: "none",
-            border: "1px solid #e5e7eb",
-            borderRadius: 8,
-            cursor: "pointer",
-            fontSize: 13,
-            fontWeight: 500,
-            color: "#374151",
-            marginBottom: 20,
-            transition: "all 0.15s",
-            fontFamily: FONT,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "#f9fafb";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "none";
-          }}
-        >
-          <svg
-            width="16"
-            height="16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            viewBox="0 0 24 24"
-          >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Volver a la lista
-        </button>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 16,
-            marginBottom: 20,
-          }}
-        >
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 12,
-              background: "#232f3e",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 18,
-              fontWeight: 700,
-              color: "#fff",
-              flexShrink: 0,
-            }}
-          >
-            EXW
-          </div>
-          <div>
-            <h1
-              style={{
-                fontSize: 22,
-                fontWeight: 700,
-                color: "#1f2937",
-                margin: 0,
-              }}
-            >
-              All EXW Charges
-            </h1>
-            <p style={{ fontSize: 14, color: "#6b7280", margin: "2px 0 0" }}>
-              Consolidado de cobros EXW para los {clientes.length} clientes del
-              ejecutivo.
-            </p>
-          </div>
-        </div>
-
-        <EXWChargesView
-          clientUsernames={clientes.map((client) => client.username)}
-        />
       </div>
     );
   }
@@ -623,10 +495,7 @@ function ReporteriaClientes() {
           <div style={{ display: "flex", gap: 2, overflowX: "auto" }}>
             {/* Cotizaciones */}
             <button
-              onClick={() => {
-                setActiveTab("quotes");
-                setOpsOpen(false);
-              }}
+              onClick={() => setActiveTab("quotes")}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -652,73 +521,8 @@ function ReporteriaClientes() {
               Cotizaciones
             </button>
 
-            {/* Operaciones accordion trigger */}
             <button
-              onClick={() => setOpsOpen((o) => !o)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "7px 14px",
-                background:
-                  activeTab === "air" ||
-                  activeTab === "ocean" ||
-                  activeTab === "ground"
-                    ? "#fff"
-                    : "none",
-                border: "none",
-                borderTop:
-                  activeTab === "air" ||
-                  activeTab === "ocean" ||
-                  activeTab === "ground"
-                    ? "2px solid #ff6200"
-                    : "2px solid transparent",
-                borderRadius: "4px 4px 0 0",
-                marginBottom: -1,
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight:
-                  activeTab === "air" ||
-                  activeTab === "ocean" ||
-                  activeTab === "ground"
-                    ? 600
-                    : 400,
-                color:
-                  activeTab === "air" ||
-                  activeTab === "ocean" ||
-                  activeTab === "ground"
-                    ? "#ff6200"
-                    : "#6b7280",
-                transition: "all 0.15s",
-                whiteSpace: "nowrap",
-                fontFamily: FONT,
-              }}
-            >
-              Operaciones
-              <svg
-                width="11"
-                height="11"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                viewBox="0 0 24 24"
-                style={{
-                  transform: opsOpen ? "rotate(180deg)" : "rotate(0deg)",
-                  transition: "transform 0.15s",
-                }}
-              >
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
-            </button>
-
-            {/* Seguimientos */}
-            <button
-              onClick={() => {
-                setActiveTab("tracking");
-                setOpsOpen(false);
-              }}
+              onClick={() => setActiveTab("tracking")}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -746,10 +550,7 @@ function ReporteriaClientes() {
 
             {/* Configuraciones */}
             <button
-              onClick={() => {
-                setActiveTab("settings");
-                setOpsOpen(false);
-              }}
+              onClick={() => setActiveTab("settings")}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -775,60 +576,6 @@ function ReporteriaClientes() {
               Configuraciones
             </button>
           </div>
-          {/* Operaciones accordion panel */}
-          <div
-            style={{
-              maxHeight: opsOpen ? "120px" : "0",
-              overflow: "hidden",
-              transition: "max-height 0.22s ease",
-            }}
-          >
-            <ul
-              style={{
-                listStyle: "none",
-                margin: "4px 0 6px 28px",
-                padding: "0",
-                borderLeft: "2px solid rgba(141, 153, 168, 0.2)",
-              }}
-            >
-              {(
-                [
-                  { key: "air" as const, label: "Aéreo" },
-                  { key: "ocean" as const, label: "Marítimo" },
-                  { key: "ground" as const, label: "Terrestre" },
-                ] as const
-              ).map((op) => (
-                <li key={op.key}>
-                  <button
-                    onClick={() => {
-                      setActiveTab(op.key);
-                      setOpsOpen(false);
-                    }}
-                    style={{
-                      display: "block",
-                      padding: "8px 16px",
-                      background: "none",
-                      border: "none",
-                      borderLeft:
-                        activeTab === op.key
-                          ? "2px solid #ff6200"
-                          : "2px solid transparent",
-                      marginLeft: "-2px",
-                      cursor: "pointer",
-                      fontSize: 13,
-                      fontWeight: activeTab === op.key ? 600 : 400,
-                      color: activeTab === op.key ? "#1f2937" : "#6b7280",
-                      transition: "all 0.15s",
-                      whiteSpace: "nowrap",
-                      fontFamily: FONT,
-                    }}
-                  >
-                    {op.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
         </div>
 
         {/* Tab Content — wraps views with the client's username override */}
@@ -836,15 +583,6 @@ function ReporteriaClientes() {
           value={{ openTrackingTab, openQuotesTab, quoteFilterNumber }}
         >
           <ClientOverrideProvider value={selectedClient.username}>
-            {activeTab === "air" && (
-              <AirShipmentsView initialFilterNumber={shipmentFilterNumber} />
-            )}
-            {activeTab === "ocean" && (
-              <OceanShipmentsView initialFilterNumber={shipmentFilterNumber} />
-            )}
-            {activeTab === "ground" && (
-              <GroundShipmentsView initialFilterNumber={shipmentFilterNumber} />
-            )}
             {activeTab === "quotes" && (
               <QuotesView initialQuoteFilter={quoteFilterNumber} />
             )}
@@ -893,7 +631,7 @@ function ReporteriaClientes() {
           </h1>
           <p style={{ fontSize: 14, color: "#6b7280", margin: "4px 0 0" }}>
             Selecciona un cliente para ver su portal personalizado con sus
-            cotizaciones, envíos y más.
+            cotizaciones y seguimientos ShipsGo.
           </p>
         </div>
 
@@ -1202,81 +940,6 @@ function ReporteriaClientes() {
           );
         })}
 
-        {clientes.length > 0 && (
-          <button
-            type="button"
-            onClick={handleSelectAllExw}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 14,
-              padding: "16px 18px",
-              background: "#fff7ed",
-              border: "1px dashed #fb923c",
-              borderRadius: 10,
-              cursor: "pointer",
-              transition: "all 0.15s",
-              textAlign: "left",
-              fontFamily: FONT,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "#ffedd5";
-              e.currentTarget.style.borderColor = "#f97316";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#fff7ed";
-              e.currentTarget.style.borderColor = "#fb923c";
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-              <div
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 10,
-                  background: "#ff6200",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  color: "#fff",
-                  flexShrink: 0,
-                }}
-              >
-                EXW
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: "#9a3412",
-                  }}
-                >
-                  All EXW Charges
-                </div>
-                <div style={{ fontSize: 12, color: "#c2410c" }}>
-                  Ver cobros EXW consolidados de todos los clientes asignados.
-                </div>
-              </div>
-            </div>
-
-            <svg
-              width="16"
-              height="16"
-              fill="none"
-              stroke="#c2410c"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              viewBox="0 0 24 24"
-            >
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </button>
-        )}
       </div>
 
       {sortedClients.length === 0 && (

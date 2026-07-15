@@ -709,7 +709,7 @@ function CookiesSettings() {
                       <td>
                         <strong>OpenAI</strong>
                       </td>
-                      <td>Chatbot de asistencia con IA</td>
+                      <td>Preferencias de notificaciones</td>
                       <td>Funcional</td>
                       <td>
                         <a

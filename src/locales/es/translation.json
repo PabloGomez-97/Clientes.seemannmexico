@@ -213,7 +213,7 @@
       "help": "Ayuda"
     },
     "userLayout": {
-      "linbisTokenError": "No se pudo obtener el token de Linbis",
+      "sessionError": "No se pudo completar la sesión",
       "unknownError": "Error desconocido",
       "loading": "Cargando...",
       "startingSystem": "Iniciando Sistema",
@@ -1133,7 +1133,7 @@
     "cargandoConfig": "Cargando configuración...",
     "errorValorProducto": "Debes ingresar el Valor del Producto.",
     "errorCostoTransporte": "Debes ingresar el Costo de Transporte.",
-    "errorTokenLoading": "Espera a que cargue la conexión con Linbis.",
+    "errorTokenLoading": "Espera a que cargue la sesión.",
     "errorPayload": "No se pudo generar el payload de la cotización.",
     "successConNumero": "Cotización {{numero}} generada exitosamente.",
     "successSinNumero": "Cotización generada exitosamente (descargando PDF)."

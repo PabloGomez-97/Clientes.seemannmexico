@@ -36,7 +36,6 @@ const fmt = (n: number) =>
 export default function QuoteInternacionalizacion() {
   const { t } = useTranslation();
   const { user, token } = useAuth();
-  const tokenLoading = false;
   const { config: aduanaConfig, loading: aduanaConfigLoading } =
     useAgenciaAduanas();
 
@@ -93,86 +92,6 @@ export default function QuoteInternacionalizacion() {
     if (value === "" || /^[\d,.]+$/.test(value)) {
       setter(value);
     }
-  };
-
-  // ── Build Linbis payload ──
-  const getPayload = () => {
-    if (!aduanaResult || valorProductoNum <= 0) return null;
-
-    const charges = [
-      {
-        service: {
-          id: 127954,
-          code: "ADA",
-          description: "AGENCIA DE ADUANA",
-        },
-        income: {
-          quantity: 1,
-          unit: "AGENCIA DE ADUANA",
-          rate: aduanaResult.total,
-          amount: aduanaResult.total,
-          payment: "Prepaid",
-          billApplyTo: "Other",
-          billTo: { name: effectiveUsername },
-          currency: { abbr: currency },
-          reference: "Amount to Agencia de Aduana",
-          showOnDocument: true,
-          notes:
-            "Agencia de Aduana y Nacionalización - incluye honorarios, gastos despacho, tramitación, mensajería, IVA aduanero y derechos",
-        },
-        expense: {
-          currency: { abbr: currency },
-        },
-      },
-    ];
-
-    return {
-      date: new Date().toISOString(),
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      transitDays: 999,
-      project: { name: "Internacionalización" },
-      customerReference: "Portal Created [INTERNACIONALIZACIÓN]",
-      contact: { name: effectiveUsername },
-      origin: { name: "N/A" },
-      carrierBroker: { name: effectiveUsername },
-      destination: { name: "N/A" },
-      modeOfTransportation: { id: 47 },
-      rateCategoryId: 2,
-      incoterm: { code: "CIF", name: "CIF" },
-      portOfReceipt: { name: "N/A" },
-      shipper: { name: effectiveUsername },
-      consignee: { name: effectiveUsername },
-      issuingCompany: { name: effectiveUsername },
-      serviceType: { name: "Agencia de Aduanas e Internacionalización" },
-      salesRep: { name: salesRepName },
-      commodities: [
-        {
-          commodityType: "Standard",
-          packageType: { id: 97 },
-          pieces: 1,
-          description: "Agencia de Aduanas e Internacionalización",
-          weightPerUnitValue: 0,
-          weightPerUnitUOM: "kg",
-          totalWeightValue: 0,
-          totalWeightUOM: "kg",
-          lengthValue: 0,
-          lengthUOM: "cm",
-          widthValue: 0,
-          widthUOM: "cm",
-          heightValue: 0,
-          heightUOM: "cm",
-          volumeValue: 0,
-          volumeUOM: "m3",
-          totalVolumeValue: 0,
-          totalVolumeUOM: "m3",
-          volumeWeightValue: 0,
-          volumeWeightUOM: "kg",
-          totalVolumeWeightValue: 0,
-          totalVolumeWeightUOM: "kg",
-        },
-      ],
-      charges,
-    };
   };
 
   // ── Generate PDF ──
@@ -340,8 +259,6 @@ export default function QuoteInternacionalizacion() {
       setError(t("QuoteINT.errorCostoTransporte"));
       return;
     }
-    if (tokenLoading) return;
-
     setLoading(true);
 
     try {
@@ -378,7 +295,7 @@ export default function QuoteInternacionalizacion() {
   };
 
   // ── Render ──
-  const isReady = !aduanaConfigLoading && !tokenLoading;
+  const isReady = !aduanaConfigLoading;
 
   return (
     <div style={{ maxWidth: "900px", margin: "0 auto" }}>

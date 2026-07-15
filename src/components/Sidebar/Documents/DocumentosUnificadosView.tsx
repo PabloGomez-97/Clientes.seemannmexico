@@ -1,9 +1,8 @@
 // src/components/Sidebar/Documents/DocumentosUnificadosView.tsx
 // Vista unificada de documentos para cliente y ejecutivo.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthContext";
-import { linbisFetch } from "../../../services/linbisFetch";
 import "./DocumentosUnificadosView.css";
 import LoadingTips from "../../shipments/LoadingTips";
 
@@ -31,12 +30,6 @@ interface AllDocs {
 
 type TransportType = "all" | "air" | "ocean" | "ground" | "quotes";
 type GroupTransportType = Exclude<TransportType, "all">;
-
-interface OutletContext {
-  accessToken: string;
-  refreshAccessToken: () => Promise<string>;
-  onLogout: () => void;
-}
 
 interface ReferenceMeta {
   number: string | null;
@@ -240,8 +233,6 @@ export function DocumentosUnificadosView({
   const { token } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { accessToken, refreshAccessToken } = useOutletContext<OutletContext>();
-
   const [docs, setDocs] = useState<AllDocs>({
     air: [],
     ocean: [],
@@ -260,166 +251,29 @@ export function DocumentosUnificadosView({
   >({});
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
 
-  const loadReferenceMap = useCallback(
-    async (sourceDocs: AllDocs) => {
-      if (!accessToken || !ownerUsername) {
-        setReferenceMap({});
-        return {};
-      }
+  const loadReferenceMap = useCallback(async (sourceDocs: AllDocs) => {
+    const nextMap: Record<string, ReferenceMeta> = {};
 
-      const nextMap: Record<string, ReferenceMeta> = {};
+    const addRefs = (type: GroupTransportType, items: DocItem[]) => {
+      items.forEach((doc) => {
+        const internalId = normalizeText(doc.shipmentId);
+        if (!internalId) return;
 
-      const airIds = new Set(
-        sourceDocs.air
-          .map((doc) => normalizeText(doc.shipmentId))
-          .filter(Boolean) as string[],
-      );
-      const oceanIds = new Set(
-        sourceDocs.ocean
-          .map((doc) => normalizeText(doc.shipmentId))
-          .filter(Boolean) as string[],
-      );
-      const groundIds = new Set(
-        sourceDocs.ground
-          .map((doc) => normalizeText(doc.shipmentId))
-          .filter(Boolean) as string[],
-      );
-      const quoteIds = new Set(
-        sourceDocs.quotes
-          .map((doc) => normalizeText(doc.shipmentId))
-          .filter(Boolean) as string[],
-      );
-
-      const shippingOrderIds = Array.from(new Set([...airIds, ...oceanIds]));
-
-      const shippingOrderRequests = shippingOrderIds.map(async (shipmentId) => {
-        try {
-          const res = await linbisFetch(
-            `https://api.linbis.com/api/shipping-orders/${encodeURIComponent(shipmentId)}`,
-            {
-              method: "GET",
-              headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-              },
-            },
-            accessToken,
-            refreshAccessToken,
-          );
-
-          if (!res.ok) return;
-
-          const detail: any = await res.json();
-          const meta: ReferenceMeta = {
-            number: normalizeText(detail?.number),
-            customerReference: normalizeText(detail?.customerReference),
-          };
-
-          if (airIds.has(shipmentId)) {
-            nextMap[getReferenceKey("air", shipmentId)] = meta;
-          }
-          if (oceanIds.has(shipmentId)) {
-            nextMap[getReferenceKey("ocean", shipmentId)] = meta;
-          }
-        } catch {
-          // Keep the fallback reference if Linbis is unavailable.
+        const key = getReferenceKey(type, internalId);
+        if (!nextMap[key]) {
+          nextMap[key] = { number: internalId, customerReference: null };
         }
       });
+    };
 
-      const groundRequest =
-        groundIds.size > 0
-          ? (async () => {
-              try {
-                const res = await linbisFetch(
-                  "https://api.linbis.com/ground-shipments/all",
-                  {
-                    method: "GET",
-                    headers: {
-                      Accept: "application/json",
-                      "Content-Type": "application/json",
-                    },
-                  },
-                  accessToken,
-                  refreshAccessToken,
-                );
+    addRefs("air", sourceDocs.air);
+    addRefs("ocean", sourceDocs.ocean);
+    addRefs("ground", sourceDocs.ground);
+    addRefs("quotes", sourceDocs.quotes);
 
-                if (!res.ok) return;
-
-                const data: any = await res.json();
-                const shipments = Array.isArray(data) ? data : [];
-
-                shipments.forEach((shipment: any) => {
-                  const shipmentId = normalizeText(String(shipment?.id ?? ""));
-                  if (!shipmentId || !groundIds.has(shipmentId)) return;
-
-                  nextMap[getReferenceKey("ground", shipmentId)] = {
-                    number: normalizeText(shipment?.number),
-                    customerReference: normalizeText(
-                      shipment?.customerReference,
-                    ),
-                  };
-                });
-              } catch {
-                // Keep the fallback reference if the lookup fails.
-              }
-            })()
-          : Promise.resolve();
-
-      const quotesRequest =
-        quoteIds.size > 0
-          ? (async () => {
-              try {
-                const query = new URLSearchParams({
-                  ConsigneeName: ownerUsername,
-                  Page: "1",
-                  ItemsPerPage: "999",
-                  SortBy: "newest",
-                });
-
-                const res = await linbisFetch(
-                  `https://api.linbis.com/Quotes?${query.toString()}`,
-                  {
-                    method: "GET",
-                    headers: {
-                      Accept: "application/json",
-                      "Content-Type": "application/json",
-                    },
-                  },
-                  accessToken,
-                  refreshAccessToken,
-                );
-
-                if (!res.ok) return;
-
-                const data: any = await res.json();
-                const quotes = Array.isArray(data) ? data : [];
-
-                quotes.forEach((quote: any) => {
-                  const quoteId = normalizeText(String(quote?.id ?? ""));
-                  if (!quoteId || !quoteIds.has(quoteId)) return;
-
-                  nextMap[getReferenceKey("quotes", quoteId)] = {
-                    number: normalizeText(quote?.number),
-                    customerReference: normalizeText(quote?.customerReference),
-                  };
-                });
-              } catch {
-                // Keep the fallback reference if the lookup fails.
-              }
-            })()
-          : Promise.resolve();
-
-      await Promise.allSettled([
-        Promise.allSettled(shippingOrderRequests),
-        groundRequest,
-        quotesRequest,
-      ]);
-
-      setReferenceMap(nextMap);
-      return nextMap;
-    },
-    [accessToken, ownerUsername, refreshAccessToken],
-  );
+    setReferenceMap(nextMap);
+    return nextMap;
+  }, []);
 
   const loadDocs = useCallback(
     async (forceRefresh = false) => {

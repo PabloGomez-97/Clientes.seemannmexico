@@ -6,7 +6,6 @@ import {
   type MutableRefObject,
 } from "react";
 import { Modal, Button, OverlayTrigger, Tooltip } from "react-bootstrap";
-// Sin Linbis: no usamos OutletContext
 import { useAuth } from "../../auth/AuthContext";
 import { useAuditLog } from "../../hooks/useAuditLog";
 import * as XLSX from "xlsx";
@@ -62,7 +61,6 @@ import "./QuoteFCL.css";
 import "flag-icons/css/flag-icons.min.css";
 import GenerateOperationModal from "./Operations/GenerateOperationModal";
 import { useOperationModalAfterPdf } from "./Operations/useOperationModalAfterPdf";
-// Linbis removido: cotizaciones México usan R2/Mongo
 import {
   fetchExpandedRoutes,
   fetchCountryPorts,
@@ -1514,7 +1512,6 @@ function QuoteFCL({
     setResponse(null);
 
     try {
-      // Nuevo flujo México: folio local (sin Linbis)
       const nextRes = await fetch("/api/quotes/next-number", {
         method: "POST",
         headers: {

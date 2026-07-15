@@ -10,10 +10,6 @@
   },
   "crons": [
     {
-      "path": "/api/cron/renew-linbis-token",
-      "schedule": "0 */12 * * *"
-    },
-    {
       "path": "/api/cron/pricing-expiry-check",
       "schedule": "0 12 * * *"
     },

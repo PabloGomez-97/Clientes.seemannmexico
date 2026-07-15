@@ -14,14 +14,14 @@ export {
   AEREO_BANK_USD,
   calcAereoCostoTransporte,
   buildAereoOperationalPdfCharges,
-  buildAereoOperationalLinbisCharges,
+  buildAereoOperationalCharges,
   type AereoPdfCharge,
 } from "./aereoOperationalCharges";
 
 export {
   AEREO_DDP_ADUANA_SERVICES,
   calculateAereoDdpAduanaCharges,
-  buildAereoDdpAduanaLinbisCharges,
+  buildAereoDdpAduanaCharges,
   buildAereoDdpAduanaPdfCharges,
   type AereoDdpAduanaBreakdown,
   type AereoDdpAduanaResult,

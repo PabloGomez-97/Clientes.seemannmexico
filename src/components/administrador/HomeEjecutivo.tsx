@@ -1,6 +1,6 @@
 // src/components/administrador/HomeEjecutivo.tsx — Torre de Control del Ejecutivo
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate, useOutletContext, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import type {
   AirShipment,
@@ -39,12 +39,6 @@ const BEHAVIOR_QUOTE_TYPES = ["AIR", "FCL", "LCL", "LASTMILE"] as const;
 // Types
 // ═══════════════════════════════════════════════════════════════════════════
 
-interface OutletContext {
-  accessToken: string;
-  refreshAccessToken: () => Promise<string>;
-  onLogout: () => void;
-}
-
 interface Cliente {
   id: string;
   email: string;
@@ -52,115 +46,6 @@ interface Cliente {
   nombreuser?: string;
   createdAt: string;
 }
-
-// Linbis shipment (air)
-interface LinbisAirShipment {
-  id?: string | number;
-  number?: string;
-  waybillNumber?: string;
-  carrier?: { name?: string };
-  consignee?: { name?: string };
-  origin?: string;
-  destination?: string;
-  departure?: { displayDate?: string } | string;
-  arrival?: { displayDate?: string } | string;
-  customerReference?: string;
-  cargoDescription?: string;
-  [key: string]: unknown;
-}
-
-// Linbis shipment (ocean)
-interface LinbisOceanShipment {
-  id?: number;
-  number?: string;
-  consignee?: string;
-  carrier?: string;
-  portOfLoading?: string;
-  portOfUnloading?: string;
-  vessel?: string;
-  bookingNumber?: string;
-  waybillNumber?: string;
-  containerNumber?: string;
-  departure?: string;
-  arrival?: string;
-  customerReference?: string;
-  cargoDescription?: string;
-  accountingStatus?: string;
-  totalCargo_Pieces?: number;
-  totalCargo_WeightDisplayValue?: string;
-  [key: string]: unknown;
-}
-
-// Linbis shipment (ground)
-interface LinbisGroundShipment {
-  id?: number;
-  number?: string;
-  consignee?: string;
-  carrier?: string;
-  from?: string;
-  to?: string;
-  truckNumber?: string;
-  departure?: string;
-  arrival?: string;
-  customerReference?: string;
-  cargoDescription?: string;
-  totalCargo_Pieces?: number;
-  totalCargo_WeightDisplayValue?: string;
-  [key: string]: unknown;
-}
-
-// Quote from Linbis
-interface LinbisQuote {
-  id?: string | number;
-  number?: string;
-  date?: string;
-  validUntil_Date?: string;
-  origin?: string;
-  destination?: string;
-  consignee?: string;
-  totalCargo_Pieces?: number;
-  totalCharge_IncomeDisplayValue?: string;
-  customerReference?: string;
-  [key: string]: unknown;
-}
-
-const getLinbisQuoteDate = (quote: Record<string, unknown>): string => {
-  const candidates = [
-    quote.date,
-    quote.createdAt,
-    quote.created_at,
-    quote.dateCreated,
-    quote.createdDate,
-    quote.creationDate,
-    quote.quoteDate,
-    quote.quotationDate,
-  ];
-
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) {
-      return candidate;
-    }
-
-    if (
-      candidate &&
-      typeof candidate === "object" &&
-      "displayDate" in candidate &&
-      typeof (candidate as { displayDate?: unknown }).displayDate === "string"
-    ) {
-      const displayDate = (candidate as { displayDate: string }).displayDate;
-      if (displayDate.trim()) {
-        return displayDate;
-      }
-    }
-  }
-
-  return "";
-};
-
-const normalizeLinbisQuote = (quote: LinbisQuote): LinbisQuote => ({
-  ...quote,
-  date: getLinbisQuoteDate(quote),
-});
 
 // Behavior tracking — aggregated KPI stats
 interface BehaviorStats {
@@ -181,10 +66,6 @@ interface ClientStats {
   username: string;
   nombreuser?: string;
   email: string;
-  airCount: number;
-  oceanCount: number;
-  groundCount: number;
-  quoteCount: number;
   trackingAir: number;
   trackingOcean: number;
 }
@@ -232,18 +113,9 @@ type ListModalType =
   | null
   | "all-clients"
   | "all-trackings"
-  | "kpi-clients"
-  | "kpi-air"
-  | "kpi-ocean"
-  | "kpi-ground"
-  | "kpi-quotes"
   | "kpi-trackings"
   | "kpi-delayed"
-  | "client-detail"
-  | "linbis-air"
-  | "linbis-ocean"
-  | "linbis-ground"
-  | "linbis-quotes";
+  | "client-detail";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Helpers
@@ -306,57 +178,6 @@ function getOceanBadgeClass(status: string): string {
       return "ej-badge--delivered";
     default:
       return "ej-badge--other";
-  }
-}
-
-function linbisFetchBasic(url: string, accessToken: string): Promise<Response> {
-  return fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json",
-    },
-  });
-}
-
-// ── Linbis localStorage cache (TTL: 4 horas) ─────────────────────────────
-const LINBIS_CACHE_TTL = 4 * 60 * 60 * 1000;
-
-interface LinbisCache {
-  air: LinbisAirShipment[];
-  ocean: LinbisOceanShipment[];
-  ground: LinbisGroundShipment[];
-  quotes: LinbisQuote[];
-  ts: number;
-}
-
-function readLinbisCache(username: string): LinbisCache | null {
-  try {
-    const raw = localStorage.getItem(`ej_linbis_v1_${username}`);
-    if (!raw) return null;
-    const data: LinbisCache = JSON.parse(raw);
-    if (Date.now() - data.ts > LINBIS_CACHE_TTL) return null;
-    return data;
-  } catch {
-    return null;
-  }
-}
-
-function writeLinbisCache(username: string, cache: Omit<LinbisCache, "ts">) {
-  try {
-    localStorage.setItem(
-      `ej_linbis_v1_${username}`,
-      JSON.stringify({ ...cache, ts: Date.now() }),
-    );
-  } catch {
-    /* quota exceeded */
-  }
-}
-
-function clearLinbisCache(username: string) {
-  try {
-    localStorage.removeItem(`ej_linbis_v1_${username}`);
-  } catch {
-    /* */
   }
 }
 
@@ -510,21 +331,12 @@ function StatusBar({
 
 export default function HomeEjecutivo() {
   const { user, token } = useAuth();
-  const { accessToken } = useOutletContext<OutletContext>();
   const navigate = useNavigate();
 
   // ── Core state ─────────────────────────────────────────
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  // Linbis data
-  const [linbisAir, setLinbisAir] = useState<LinbisAirShipment[]>([]);
-  const [linbisOcean, setLinbisOcean] = useState<LinbisOceanShipment[]>([]);
-  const [linbisGround, setLinbisGround] = useState<LinbisGroundShipment[]>([]);
-  const [linbisQuotes, setLinbisQuotes] = useState<LinbisQuote[]>([]);
-  const [linbisLoading, setLinbisLoading] = useState(true);
-  const [linbisRefreshing, setLinbisRefreshing] = useState(false);
 
   // Behavior tracking
   const [behaviorStats, setBehaviorStats] = useState<BehaviorStats | null>(
@@ -550,9 +362,7 @@ export default function HomeEjecutivo() {
 
   // Filters
   const [clientFilter, setClientFilter] = useState("");
-  const [shipmentTab, setShipmentTab] = useState<"air" | "ocean" | "ground">(
-    "air",
-  );
+  const [shipmentTab, setShipmentTab] = useState<"air" | "ocean">("air");
 
   // Modal state
   const [selectedAir, setSelectedAir] = useState<AirShipment | null>(null);
@@ -647,132 +457,6 @@ export default function HomeEjecutivo() {
   useEffect(() => {
     fetchCoreData();
   }, [fetchCoreData]);
-
-  // ── fetchLinbisData: carga con cache localStorage (TTL 4 hrs) ─────────────
-  const fetchLinbisData = useCallback(
-    async (force = false) => {
-      if (!accessToken || !clientes.length) {
-        setLinbisLoading(false);
-        return;
-      }
-
-      const cacheKey = user?.username;
-
-      // Restaurar desde cache si no es forzado
-      if (!force && cacheKey) {
-        const cached = readLinbisCache(cacheKey);
-        if (cached) {
-          setLinbisAir(cached.air);
-          setLinbisOcean(cached.ocean);
-          setLinbisGround(cached.ground);
-          setLinbisQuotes(cached.quotes);
-          setLinbisLoading(false);
-          return;
-        }
-      }
-
-      if (force) {
-        setLinbisRefreshing(true);
-        if (cacheKey) clearLinbisCache(cacheKey);
-      } else {
-        setLinbisLoading(true);
-      }
-
-      try {
-        const [oceanAllRes, groundAllRes] = await Promise.allSettled([
-          linbisFetchBasic(
-            "https://api.linbis.com/ocean-shipments/all",
-            accessToken,
-          ).then((r) => (r.ok ? r.json() : [])),
-          linbisFetchBasic(
-            "https://api.linbis.com/ground-shipments/all",
-            accessToken,
-          ).then((r) => (r.ok ? r.json() : [])),
-        ]);
-
-        const clientUsernames = new Set(clientes.map((c) => c.username));
-
-        const oceanAll: LinbisOceanShipment[] =
-          oceanAllRes.status === "fulfilled" && Array.isArray(oceanAllRes.value)
-            ? oceanAllRes.value.filter((o: LinbisOceanShipment) =>
-                clientUsernames.has(o.consignee || ""),
-              )
-            : [];
-        const groundAll: LinbisGroundShipment[] =
-          groundAllRes.status === "fulfilled" &&
-          Array.isArray(groundAllRes.value)
-            ? groundAllRes.value.filter((g: LinbisGroundShipment) =>
-                clientUsernames.has(g.consignee || ""),
-              )
-            : [];
-
-        const airPromises = clientes.map((c) =>
-          linbisFetchBasic(
-            `https://api.linbis.com/air-shipments?ConsigneeName=${encodeURIComponent(c.username)}&SortBy=newest&ItemsPerPage=100`,
-            accessToken,
-          ).then(async (r) => {
-            if (!r.ok) return [];
-            const d = await r.json();
-            return Array.isArray(d) ? d : [];
-          }),
-        );
-
-        const quotesPromises = clientes.map((c) =>
-          linbisFetchBasic(
-            `https://api.linbis.com/Quotes?ConsigneeName=${encodeURIComponent(c.username)}&SortBy=newest&ItemsPerPage=100`,
-            accessToken,
-          ).then(async (r) => {
-            if (!r.ok) return [];
-            const d = await r.json();
-            return Array.isArray(d) ? d : [];
-          }),
-        );
-
-        const [airResults, quoteResults] = await Promise.all([
-          Promise.allSettled(airPromises),
-          Promise.allSettled(quotesPromises),
-        ]);
-
-        const allAirShipments: LinbisAirShipment[] = [];
-        airResults.forEach((res) => {
-          if (res.status === "fulfilled") allAirShipments.push(...res.value);
-        });
-
-        const allQuotes: LinbisQuote[] = [];
-        quoteResults.forEach((res) => {
-          if (res.status === "fulfilled") {
-            allQuotes.push(...res.value.map(normalizeLinbisQuote));
-          }
-        });
-
-        setLinbisAir(allAirShipments);
-        setLinbisOcean(oceanAll);
-        setLinbisGround(groundAll);
-        setLinbisQuotes(allQuotes);
-
-        if (cacheKey) {
-          writeLinbisCache(cacheKey, {
-            air: allAirShipments,
-            ocean: oceanAll,
-            ground: groundAll,
-            quotes: allQuotes,
-          });
-        }
-      } catch {
-        /* silent */
-      } finally {
-        setLinbisLoading(false);
-        setLinbisRefreshing(false);
-      }
-    },
-    [accessToken, clientes, user],
-  );
-
-  // ── Disparar carga de Linbis al entrar al home (una vez que clientes esté listo) ─
-  useEffect(() => {
-    if (loading) return;
-    fetchLinbisData();
-  }, [loading, fetchLinbisData]);
 
   // Auto-refresh every 5 minutes
   useEffect(() => {
@@ -946,41 +630,11 @@ export default function HomeEjecutivo() {
         username: c.username,
         nombreuser: c.nombreuser,
         email: c.email,
-        airCount: 0,
-        oceanCount: 0,
-        groundCount: 0,
-        quoteCount: 0,
         trackingAir: 0,
         trackingOcean: 0,
       });
     });
 
-    // Count Linbis air
-    linbisAir.forEach((s) => {
-      const name = s.consignee?.name || "";
-      const entry = map.get(name);
-      if (entry) entry.airCount++;
-    });
-
-    // Count Linbis ocean
-    linbisOcean.forEach((s) => {
-      const entry = map.get(s.consignee || "");
-      if (entry) entry.oceanCount++;
-    });
-
-    // Count Linbis ground
-    linbisGround.forEach((s) => {
-      const entry = map.get(s.consignee || "");
-      if (entry) entry.groundCount++;
-    });
-
-    // Count quotes
-    linbisQuotes.forEach((q) => {
-      const entry = map.get(q.consignee || "");
-      if (entry) entry.quoteCount++;
-    });
-
-    // Count ShipsGo trackings
     trackingAir.forEach((s) => {
       const entry = map.get(s.reference || "");
       if (entry) entry.trackingAir++;
@@ -992,21 +646,11 @@ export default function HomeEjecutivo() {
 
     return [...map.values()].sort(
       (a, b) =>
-        b.airCount +
-        b.oceanCount +
-        b.groundCount +
-        b.quoteCount -
-        (a.airCount + a.oceanCount + a.groundCount + a.quoteCount),
+        b.trackingAir +
+        b.trackingOcean -
+        (a.trackingAir + a.trackingOcean),
     );
-  }, [
-    clientes,
-    linbisAir,
-    linbisOcean,
-    linbisGround,
-    linbisQuotes,
-    trackingAir,
-    trackingOcean,
-  ]);
+  }, [clientes, trackingAir, trackingOcean]);
 
   // Filtered clients
   const filteredClients = useMemo(() => {
@@ -1152,11 +796,8 @@ export default function HomeEjecutivo() {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             className="ej-refresh-btn"
-            onClick={() => {
-              fetchCoreData(true);
-              fetchLinbisData(true);
-            }}
-            disabled={refreshing || linbisRefreshing}
+            onClick={() => fetchCoreData(true)}
+            disabled={refreshing}
           >
             <svg
               width="14"
@@ -1167,13 +808,13 @@ export default function HomeEjecutivo() {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className={refreshing || linbisRefreshing ? "spinning" : ""}
+              className={refreshing ? "spinning" : ""}
             >
               <polyline points="23 4 23 10 17 10" />
               <polyline points="1 20 1 14 7 14" />
               <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
             </svg>
-            {refreshing || linbisRefreshing ? "Actualizando..." : "Actualizar"}
+            {refreshing ? "Actualizando..." : "Actualizar"}
           </button>
           <div className="ej-header__badge">
             <svg
@@ -2304,7 +1945,7 @@ export default function HomeEjecutivo() {
               <div className="ej-empty">Sin resultados.</div>
             ) : (
               filteredClients.slice(0, 12).map((c) => {
-                const total = c.airCount + c.oceanCount + c.groundCount;
+                const total = c.trackingAir + c.trackingOcean;
                 return (
                   <div
                     key={c.username}
@@ -2315,17 +1956,12 @@ export default function HomeEjecutivo() {
                     }}
                   >
                     <div className="ej-client-row__avatar">
-                      {(c.username || c.username || "?")
-                        .charAt(0)
-                        .toUpperCase()}
+                      {(c.username || "?").charAt(0).toUpperCase()}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="ej-client-row__name">
-                        {c.username || c.username}
-                      </div>
+                      <div className="ej-client-row__name">{c.username}</div>
                       <div style={{ fontSize: 11, color: "#8b92a5" }}>
-                        ✈{c.airCount} 🚢{c.oceanCount} 🚛{c.groundCount} 📋
-                        {c.quoteCount}
+                        ✈{c.trackingAir} 🚢{c.trackingOcean} seguimientos
                       </div>
                     </div>
                     <span className="ej-client-row__count">{total}</span>
@@ -2445,11 +2081,6 @@ export default function HomeEjecutivo() {
           oceanInTransit={oceanInTransit}
           airDelayed={airDelayed}
           oceanDelayed={oceanDelayed}
-          linbisAir={linbisAir}
-          linbisOcean={linbisOcean}
-          linbisGround={linbisGround}
-          linbisQuotes={linbisQuotes}
-          linbisLoading={linbisLoading}
           modalClient={modalClient}
           onSelectAir={(s) => {
             setListModal(null);
@@ -2517,11 +2148,6 @@ interface EjListModalProps {
   oceanInTransit: OceanShipment[];
   airDelayed: AirShipment[];
   oceanDelayed: OceanShipment[];
-  linbisAir: LinbisAirShipment[];
-  linbisOcean: LinbisOceanShipment[];
-  linbisGround: LinbisGroundShipment[];
-  linbisQuotes: LinbisQuote[];
-  linbisLoading: boolean;
   modalClient: string | null;
   onSelectAir: (s: AirShipment) => void;
   onSelectOcean: (s: OceanShipment) => void;
@@ -2540,11 +2166,6 @@ function EjListModal({
   oceanInTransit,
   airDelayed,
   oceanDelayed,
-  linbisAir,
-  linbisOcean,
-  linbisGround,
-  linbisQuotes,
-  linbisLoading,
   modalClient,
   onSelectAir,
   onSelectOcean,
@@ -2885,7 +2506,7 @@ function EjListModal({
   }
 
   // ── Render: Client list modal ──
-  if (type === "all-clients" || type === "kpi-clients") {
+  if (type === "all-clients") {
     return (
       <div className="ej-list-overlay" onClick={onClose}>
         <div className="ej-list-modal" onClick={(e) => e.stopPropagation()}>
@@ -2929,8 +2550,6 @@ function EjListModal({
                   <th>Email</th>
                   <th>✈ Aéreo</th>
                   <th>🚢 Marítimo</th>
-                  <th>🚛 Terrestre</th>
-                  <th>📋 Cotiz.</th>
                   <th>Total</th>
                 </tr>
               </thead>
@@ -2982,42 +2601,12 @@ function EjListModal({
                       <td style={{ fontSize: 11, color: "#8b92a5" }}>
                         {c.email}
                       </td>
-                      <td>
-                        {linbisLoading ? (
-                          <span className="ej-spin-inline" />
-                        ) : (
-                          c.airCount
-                        )}
-                      </td>
-                      <td>
-                        {linbisLoading ? (
-                          <span className="ej-spin-inline" />
-                        ) : (
-                          c.oceanCount
-                        )}
-                      </td>
-                      <td>
-                        {linbisLoading ? (
-                          <span className="ej-spin-inline" />
-                        ) : (
-                          c.groundCount
-                        )}
-                      </td>
-                      <td>
-                        {linbisLoading ? (
-                          <span className="ej-spin-inline" />
-                        ) : (
-                          c.quoteCount
-                        )}
-                      </td>
+                      <td>{c.trackingAir}</td>
+                      <td>{c.trackingOcean}</td>
                       <td
                         style={{ fontWeight: 700, color: "var(--ej-orange)" }}
                       >
-                        {linbisLoading ? (
-                          <span className="ej-spin-inline" />
-                        ) : (
-                          c.airCount + c.oceanCount + c.groundCount
-                        )}
+                        {c.trackingAir + c.trackingOcean}
                       </td>
                     </tr>
                   ))}
@@ -3032,18 +2621,6 @@ function EjListModal({
   // ── Render: Client detail modal ──
   if (type === "client-detail" && modalClient) {
     const cs = clientStats.find((c) => c.username === modalClient);
-    const clientAirShipments = linbisAir.filter(
-      (s) => s.consignee?.name === modalClient,
-    );
-    const clientOceanShipments = linbisOcean.filter(
-      (s) => s.consignee === modalClient,
-    );
-    const clientGroundShipments = linbisGround.filter(
-      (s) => s.consignee === modalClient,
-    );
-    const clientQuotes = linbisQuotes.filter(
-      (q) => q.consignee === modalClient,
-    );
     const clientTrackingAir = trackingAir.filter(
       (s) => s.reference === modalClient,
     );
@@ -3086,23 +2663,13 @@ function EjListModal({
             >
               <MiniStat
                 label="✈ Aéreos"
-                value={clientAirShipments.length}
+                value={clientTrackingAir.length}
                 color="var(--ej-cyan)"
               />
               <MiniStat
                 label="🚢 Marítimos"
-                value={clientOceanShipments.length}
+                value={clientTrackingOcean.length}
                 color="var(--ej-blue)"
-              />
-              <MiniStat
-                label="🚛 Terrestres"
-                value={clientGroundShipments.length}
-                color="var(--ej-teal)"
-              />
-              <MiniStat
-                label="📋 Cotizaciones"
-                value={clientQuotes.length}
-                color="var(--ej-purple)"
               />
               <MiniStat
                 label="🔍 Seguimientos"
@@ -3231,145 +2798,12 @@ function EjListModal({
               </>
             )}
 
-            {/* Linbis air for client */}
-            {clientAirShipments.length > 0 && (
-              <>
-                <h4 className="ej-list-modal__subtitle">
-                  ✈ Embarques Aéreos ({clientAirShipments.length})
-                </h4>
-                <table className="ej-mini-table" style={{ marginBottom: 16 }}>
-                  <thead>
-                    <tr>
-                      <th>Nro</th>
-                      <th>AWB</th>
-                      <th>Carrier</th>
-                      <th>Origen</th>
-                      <th>Destino</th>
-                      <th>Referencia</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clientAirShipments.slice(0, 20).map((s, idx) => (
-                      <tr key={s.id ?? idx}>
-                        <td style={{ fontWeight: 600 }}>{s.number || "—"}</td>
-                        <td style={{ fontFamily: "monospace", fontSize: 11 }}>
-                          {s.waybillNumber || "—"}
-                        </td>
-                        <td>{s.carrier?.name || "—"}</td>
-                        <td>{s.origin || "—"}</td>
-                        <td>{s.destination || "—"}</td>
-                        <td>{s.customerReference || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            )}
-
-            {/* Linbis ocean for client */}
-            {clientOceanShipments.length > 0 && (
-              <>
-                <h4 className="ej-list-modal__subtitle">
-                  🚢 Embarques Marítimos ({clientOceanShipments.length})
-                </h4>
-                <table className="ej-mini-table" style={{ marginBottom: 16 }}>
-                  <thead>
-                    <tr>
-                      <th>Nro</th>
-                      <th>BL / Container</th>
-                      <th>Naviera</th>
-                      <th>POL</th>
-                      <th>POD</th>
-                      <th>Referencia</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clientOceanShipments.slice(0, 20).map((s, idx) => (
-                      <tr key={s.id ?? idx}>
-                        <td style={{ fontWeight: 600 }}>{s.number || "—"}</td>
-                        <td style={{ fontFamily: "monospace", fontSize: 11 }}>
-                          {s.waybillNumber || s.containerNumber || "—"}
-                        </td>
-                        <td>{s.carrier || "—"}</td>
-                        <td>{s.portOfLoading || "—"}</td>
-                        <td>{s.portOfUnloading || "—"}</td>
-                        <td>{s.customerReference || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            )}
-
-            {/* Linbis ground for client */}
-            {clientGroundShipments.length > 0 && (
-              <>
-                <h4 className="ej-list-modal__subtitle">
-                  🚛 Embarques Terrestres ({clientGroundShipments.length})
-                </h4>
-                <table className="ej-mini-table" style={{ marginBottom: 16 }}>
-                  <thead>
-                    <tr>
-                      <th>Nro</th>
-                      <th>Camión</th>
-                      <th>Transportista</th>
-                      <th>Origen</th>
-                      <th>Destino</th>
-                      <th>Referencia</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clientGroundShipments.slice(0, 20).map((s, idx) => (
-                      <tr key={s.id ?? idx}>
-                        <td style={{ fontWeight: 600 }}>{s.number || "—"}</td>
-                        <td style={{ fontFamily: "monospace", fontSize: 11 }}>
-                          {s.truckNumber || "—"}
-                        </td>
-                        <td>{s.carrier || "—"}</td>
-                        <td>{s.from || "—"}</td>
-                        <td>{s.to || "—"}</td>
-                        <td>{s.customerReference || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            )}
-
-            {/* Quotes for client */}
-            {clientQuotes.length > 0 && (
-              <>
-                <h4 className="ej-list-modal__subtitle">
-                  📋 Cotizaciones ({clientQuotes.length})
-                </h4>
-                <table className="ej-mini-table">
-                  <thead>
-                    <tr>
-                      <th>Nro</th>
-                      <th>Fecha</th>
-                      <th>Origen</th>
-                      <th>Destino</th>
-                      <th>Ingreso</th>
-                      <th>Referencia</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clientQuotes.slice(0, 20).map((q, idx) => (
-                      <tr key={q.id ?? idx}>
-                        <td style={{ fontWeight: 600 }}>{q.number || "—"}</td>
-                        <td style={{ fontSize: 11 }}>{q.date || "—"}</td>
-                        <td>{q.origin || "—"}</td>
-                        <td>{q.destination || "—"}</td>
-                        <td style={{ fontWeight: 600 }}>
-                          {q.totalCharge_IncomeDisplayValue || "—"}
-                        </td>
-                        <td>{q.customerReference || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </>
-            )}
+            {clientTrackingAir.length === 0 &&
+              clientTrackingOcean.length === 0 && (
+                <div className="ej-empty" style={{ marginBottom: 16 }}>
+                  Sin seguimientos activos para este cliente.
+                </div>
+              )}
 
             {/* Navigate button */}
             <div style={{ textAlign: "center", marginTop: 20 }}>
@@ -3384,255 +2818,6 @@ function EjListModal({
                 Abrir Portal Completo de {cs?.nombreuser || modalClient} →
               </button>
             </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── Render: Linbis shipment list modals ──
-  if (
-    type === "linbis-air" ||
-    type === "linbis-ocean" ||
-    type === "linbis-ground" ||
-    type === "linbis-quotes"
-  ) {
-    const isAir = type === "linbis-air";
-    const isOceanL = type === "linbis-ocean";
-    const isGround = type === "linbis-ground";
-    const isQuotes = type === "linbis-quotes";
-
-    title = isAir
-      ? `✈ Embarques Aéreos (${linbisAir.length})`
-      : isOceanL
-        ? `🚢 Embarques Marítimos (${linbisOcean.length})`
-        : isGround
-          ? `🚛 Embarques Terrestres (${linbisGround.length})`
-          : `📋 Cotizaciones (${linbisQuotes.length})`;
-
-    return (
-      <div className="ej-list-overlay" onClick={onClose}>
-        <div className="ej-list-modal" onClick={(e) => e.stopPropagation()}>
-          <div className="ej-list-modal__header">
-            <h2 className="ej-list-modal__title">{title}</h2>
-            <button className="ej-list-modal__close" onClick={onClose}>
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-
-          <div style={{ padding: "0 24px" }}>
-            <input
-              type="text"
-              className="ej-filter-bar__search"
-              placeholder="Buscar..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ width: "100%", marginTop: 12 }}
-            />
-          </div>
-
-          <div className="ej-list-modal__body">
-            {linbisLoading ? (
-              <div className="ej-empty">Cargando datos...</div>
-            ) : isAir ? (
-              <table className="ej-mini-table">
-                <thead>
-                  <tr>
-                    <th>Nro</th>
-                    <th>AWB</th>
-                    <th>Carrier</th>
-                    <th>Cliente</th>
-                    <th>Origen</th>
-                    <th>Destino</th>
-                    <th>Referencia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {linbisAir
-                    .filter(
-                      (s) =>
-                        !search ||
-                        (s.number || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()) ||
-                        (s.waybillNumber || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()) ||
-                        (s.consignee?.name || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()) ||
-                        (s.customerReference || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()),
-                    )
-                    .map((s, idx) => (
-                      <tr key={s.id ?? idx}>
-                        <td style={{ fontWeight: 600 }}>{s.number || "—"}</td>
-                        <td style={{ fontFamily: "monospace", fontSize: 11 }}>
-                          {s.waybillNumber || "—"}
-                        </td>
-                        <td>{s.carrier?.name || "—"}</td>
-                        <td style={{ fontWeight: 600 }}>
-                          {s.consignee?.name || "—"}
-                        </td>
-                        <td>{s.origin || "—"}</td>
-                        <td>{s.destination || "—"}</td>
-                        <td>{s.customerReference || "—"}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            ) : isOceanL ? (
-              <table className="ej-mini-table">
-                <thead>
-                  <tr>
-                    <th>Nro</th>
-                    <th>BL / Container</th>
-                    <th>Naviera</th>
-                    <th>Cliente</th>
-                    <th>POL</th>
-                    <th>POD</th>
-                    <th>Referencia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {linbisOcean
-                    .filter(
-                      (s) =>
-                        !search ||
-                        (s.number || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()) ||
-                        (s.consignee || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()) ||
-                        (s.containerNumber || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()) ||
-                        (s.customerReference || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()),
-                    )
-                    .map((s, idx) => (
-                      <tr key={s.id ?? idx}>
-                        <td style={{ fontWeight: 600 }}>{s.number || "—"}</td>
-                        <td style={{ fontFamily: "monospace", fontSize: 11 }}>
-                          {s.waybillNumber || s.containerNumber || "—"}
-                        </td>
-                        <td>{s.carrier || "—"}</td>
-                        <td style={{ fontWeight: 600 }}>
-                          {s.consignee || "—"}
-                        </td>
-                        <td>{s.portOfLoading || "—"}</td>
-                        <td>{s.portOfUnloading || "—"}</td>
-                        <td>{s.customerReference || "—"}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            ) : isGround ? (
-              <table className="ej-mini-table">
-                <thead>
-                  <tr>
-                    <th>Nro</th>
-                    <th>Camión</th>
-                    <th>Transportista</th>
-                    <th>Cliente</th>
-                    <th>Origen</th>
-                    <th>Destino</th>
-                    <th>Referencia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {linbisGround
-                    .filter(
-                      (s) =>
-                        !search ||
-                        (s.number || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()) ||
-                        (s.consignee || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()) ||
-                        (s.truckNumber || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()),
-                    )
-                    .map((s, idx) => (
-                      <tr key={s.id ?? idx}>
-                        <td style={{ fontWeight: 600 }}>{s.number || "—"}</td>
-                        <td style={{ fontFamily: "monospace", fontSize: 11 }}>
-                          {s.truckNumber || "—"}
-                        </td>
-                        <td>{s.carrier || "—"}</td>
-                        <td style={{ fontWeight: 600 }}>
-                          {s.consignee || "—"}
-                        </td>
-                        <td>{s.from || "—"}</td>
-                        <td>{s.to || "—"}</td>
-                        <td>{s.customerReference || "—"}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            ) : isQuotes ? (
-              <table className="ej-mini-table">
-                <thead>
-                  <tr>
-                    <th>Nro</th>
-                    <th>Fecha</th>
-                    <th>Cliente</th>
-                    <th>Origen</th>
-                    <th>Destino</th>
-                    <th>Ingreso</th>
-                    <th>Referencia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {linbisQuotes
-                    .filter(
-                      (q) =>
-                        !search ||
-                        (q.number || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()) ||
-                        (q.consignee || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()) ||
-                        (q.customerReference || "")
-                          .toLowerCase()
-                          .includes(search.toLowerCase()),
-                    )
-                    .map((q, idx) => (
-                      <tr key={q.id ?? idx}>
-                        <td style={{ fontWeight: 600 }}>{q.number || "—"}</td>
-                        <td style={{ fontSize: 11 }}>{q.date || "—"}</td>
-                        <td style={{ fontWeight: 600 }}>
-                          {q.consignee || "—"}
-                        </td>
-                        <td>{q.origin || "—"}</td>
-                        <td>{q.destination || "—"}</td>
-                        <td style={{ fontWeight: 600 }}>
-                          {q.totalCharge_IncomeDisplayValue || "—"}
-                        </td>
-                        <td>{q.customerReference || "—"}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            ) : null}
           </div>
         </div>
       </div>

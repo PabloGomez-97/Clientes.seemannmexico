@@ -1,14 +1,8 @@
 // src/components/administrador/OP-Documentacion.tsx — Gestión de documentos para Operaciones
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useOutletContext, useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { DocumentosUnificadosView } from "../Sidebar/Documents/DocumentosUnificadosView";
-
-interface OutletContext {
-  accessToken: string;
-  refreshAccessToken: () => Promise<string>;
-  onLogout: () => void;
-}
 
 interface Cliente {
   id: string;
@@ -121,7 +115,6 @@ function setCachedDocumentCounts(data: DocumentCounts) {
 }
 
 function OPDocumentacion() {
-  useOutletContext<OutletContext>();
   const { token } = useAuth();
   const { clientUsername } = useParams<{ clientUsername?: string }>();
   const navigate = useNavigate();

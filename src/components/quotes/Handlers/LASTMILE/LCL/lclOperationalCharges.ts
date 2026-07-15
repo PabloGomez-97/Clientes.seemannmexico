@@ -106,7 +106,7 @@ export const buildLclOperationalPdfCharges = (params: {
   return charges;
 };
 
-export const buildLclOperationalLinbisCharges = (params: {
+export const buildLclOperationalCharges = (params: {
   volumeM3: number;
   realWeightKg: number;
   billToName: string;

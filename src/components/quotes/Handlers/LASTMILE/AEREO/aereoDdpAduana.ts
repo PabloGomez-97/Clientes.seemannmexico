@@ -2,7 +2,7 @@
  * Sistema de aduana / nacionalización exclusivo de Última Milla AÉREO DDP.
  * Independiente de Agencia de Aduanas y de los módulos LCL / FCL.
  *
- * Cobros (orden Linbis/PDF):
+ * Cobros (orden PDF):
  *  - CUSTOMS DUTIES 6%    → CIF × 6%
  *  - CUSTOMS TAX 19%      → CIF × 19%
  *  - CUSTOMS BROKER       → max(CIF × 0.30%, 175 USD)
@@ -13,7 +13,7 @@
  * (costoTransporte = Desconsolidación + Handling + Banking + TT; sin LAC)
  */
 
-export interface AereoDdpAduanaLinbisServiceDef {
+export interface AereoDdpAduanaServiceDef {
   id: number;
   code: string;
   description: string;
@@ -51,7 +51,7 @@ export const AEREO_DDP_ADUANA_SERVICES = {
     description: "LOCAL AIRPORT CHARGES",
     reference: "Amount to Local Airport Charges",
   },
-} as const satisfies Record<string, AereoDdpAduanaLinbisServiceDef>;
+} as const satisfies Record<string, AereoDdpAduanaServiceDef>;
 
 export interface AereoDdpAduanaBreakdown {
   customsDuties6: number;
@@ -123,7 +123,7 @@ export const calculateAereoDdpAduanaCharges = (params: {
 
 const AEREO_DDP_ADUANA_ORDER: Array<{
   key: keyof AereoDdpAduanaBreakdown;
-  service: AereoDdpAduanaLinbisServiceDef;
+  service: AereoDdpAduanaServiceDef;
 }> = [
   { key: "customsDuties6", service: AEREO_DDP_ADUANA_SERVICES.customsDuties6 },
   { key: "customsTax19", service: AEREO_DDP_ADUANA_SERVICES.customsTax19 },
@@ -144,7 +144,7 @@ export interface AereoDdpAduanaPdfCharge {
   amount: number;
 }
 
-export const buildAereoDdpAduanaLinbisCharges = (
+export const buildAereoDdpAduanaCharges = (
   breakdown: AereoDdpAduanaBreakdown,
   billToName: string,
   contextNote: string,

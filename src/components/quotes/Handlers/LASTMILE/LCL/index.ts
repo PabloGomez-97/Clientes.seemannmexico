@@ -16,14 +16,14 @@ export {
   LCL_DOC_RATE_PER_M3,
   calcLclCostoTransporte,
   buildLclOperationalPdfCharges,
-  buildLclOperationalLinbisCharges,
+  buildLclOperationalCharges,
   type LclPdfCharge,
 } from "./lclOperationalCharges";
 
 export {
   LCL_DDP_ADUANA_SERVICES,
   calculateLclDdpAduanaCharges,
-  buildLclDdpAduanaLinbisCharges,
+  buildLclDdpAduanaCharges,
   buildLclDdpAduanaPdfCharges,
   calcLclExtraportCharges,
   type LclDdpAduanaBreakdown,

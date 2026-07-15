@@ -206,7 +206,7 @@ function TermsOfService() {
                       <td>
                         Portal web de gestión: cotizador en línea, tracking de
                         envíos, gestión documental, reportería financiera y
-                        operacional, chatbot de asistencia con IA.
+                        operacional y soporte por canales oficiales.
                       </td>
                     </tr>
                     <tr>

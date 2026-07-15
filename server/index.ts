@@ -5,7 +5,6 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import 'dotenv/config';
-import chatHandler from '../api/chat.ts'; 
 import { fetchAllExpiring, filterMaxWindow } from '../api/services/pricingExpiryService.ts';
 import {
   buildAirExpiryAlertHTML, buildAirExpiryAlertSubject,
@@ -30,10 +29,6 @@ import {
   putMexicoQuotePdf,
   getMexicoQuotePdfBuffer,
 } from '../api/services/r2QuotesMexicoStorage.ts';
-import {
-  getLinbisAccessToken,
-  saveLinbisRefreshToken,
-} from '../api/services/linbisTokenStore.ts';
 import {
   buildQuotePdfResendEmailHTML,
   getQuotePdfResendEmailSubject,
@@ -227,7 +222,6 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-app.all('/api/chat', (req, res) => chatHandler(req as any, res as any));
 
 /** =========================
  *  Mongoose / Modelos tipados
@@ -2998,43 +2992,7 @@ app.delete('/api/admin/users/:id', auth, async (req, res) => {
   }
 });
 
-// GET /api/linbis-token - Obtener token (MongoDB + renovación automática)
-app.get('/api/linbis-token', async (_req, res) => {
-  console.log('🔵 [linbis-token] Endpoint llamado');
-  try {
-    const token = await getLinbisAccessToken();
-    return res.json({ token });
-  } catch (error) {
-    console.error('[linbis-token] Error:', error);
-    return res.status(500).json({
-      error: error instanceof Error ? error.message : 'Internal server error',
-    });
-  }
-});
 
-// POST /api/admin/init-linbis-token - Inicializar token en MongoDB
-app.post('/api/admin/init-linbis-token', async (req, res) => {
-  try {
-    const { refresh_token } = req.body as { refresh_token?: string };
-
-    if (!refresh_token) {
-      return res.status(400).json({ error: 'refresh_token is required' });
-    }
-
-    await saveLinbisRefreshToken(refresh_token);
-    console.log('[init-linbis-token] Refresh token initialized successfully');
-
-    return res.json({
-      success: true,
-      message: 'Refresh token initialized successfully',
-    });
-  } catch (error) {
-    console.error('[init-linbis-token] Error:', error);
-    return res.status(500).json({
-      error: error instanceof Error ? error.message : 'Internal server error',
-    });
-  }
-});
 
 /** =========================
  *  ShipsGo API
@@ -5731,7 +5689,7 @@ app.post('/api/operaciones', auth, async (req, res) => {
         : d.contenidoBase64;
       const fileBuffer = Buffer.from(base64Content, 'base64');
       const docId = new mongoose.Types.ObjectId();
-      // La carpeta en R2 es el número de cotización stripped + 84 (offset de IDs internos de Linbis)
+      // La carpeta en R2 es el número de cotización stripped + 84 (offset de IDs internos históricos)
       const strippedNum = parseInt(String(quoteNumber).replace(/^[A-Za-z]+0*/, ''), 10);
       const quoteFolder = !isNaN(strippedNum) ? String(strippedNum + 84) : String(quoteNumber);
       const r2Key = buildDocR2Key('documentos', ownerUsername, quoteFolder, docId.toString(), String(d.nombreArchivo));

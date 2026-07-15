@@ -11,7 +11,7 @@ export {
   totalFclContainers,
   calcFclCostoTransporte,
   buildFclOperationalPdfCharges,
-  buildFclOperationalLinbisCharges,
+  buildFclOperationalCharges,
   type FclContainerCode,
   type FclContainerQty,
   type FclTtRates,
@@ -22,7 +22,7 @@ export {
 export {
   FCL_DDP_ADUANA_SERVICES,
   calculateFclDdpAduanaCharges,
-  buildFclDdpAduanaLinbisCharges,
+  buildFclDdpAduanaCharges,
   buildFclDdpAduanaPdfCharges,
   type FclDdpAduanaBreakdown,
   type FclDdpAduanaResult,

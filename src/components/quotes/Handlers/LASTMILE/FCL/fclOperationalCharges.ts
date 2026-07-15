@@ -149,7 +149,7 @@ export const buildFclOperationalPdfCharges = (params: {
   return charges;
 };
 
-export const buildFclOperationalLinbisCharges = (params: {
+export const buildFclOperationalCharges = (params: {
   lines: FclContainerLine[];
   ttIncomeByCode: Partial<Record<FclContainerCode, number>>;
   billToName: string;

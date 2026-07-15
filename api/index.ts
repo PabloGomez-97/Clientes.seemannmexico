@@ -12,7 +12,6 @@ import { buildFclQuoteEmailHTML, getFclQuoteEmailSubject, type FclQuoteEmailData
 import { buildLclQuoteEmailHTML, getLclQuoteEmailSubject, type LclQuoteEmailData } from './emails/lclQuoteEmailTemplate.js';
 
 import { buildSpecialQuoteEmailHTML, getSpecialQuoteEmailSubject, type SpecialQuoteEmailData } from './emails/specialQuoteEmailTemplate.js';
-import chatHandler from './chat.js';
 import { fetchAllExpiring, filterMaxWindow } from './services/pricingExpiryService.js';
 import {
   buildAirExpiryAlertHTML, buildAirExpiryAlertSubject,
@@ -28,11 +27,6 @@ import {
   putMexicoQuotePdf,
   getMexicoQuotePdfBuffer,
 } from './services/r2QuotesMexicoStorage.js';
-import {
-  getLinbisAccessToken,
-  saveLinbisRefreshToken,
-} from './services/linbisTokenStore.js';
-import LinbisAuthService from './services/linbisAuthService.js';
 import {
   buildQuotePdfResendEmailHTML,
   getQuotePdfResendEmailSubject,
@@ -3336,91 +3330,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // ============================================================
-    // RUTAS DE LINBIS TOKEN
-    // ============================================================
-
-    // GET /api/linbis-token - Obtener token (MongoDB + renovación automática)
-    if (path === '/api/linbis-token' && method === 'GET') {
-      console.log('🔵 [linbis-token] Endpoint llamado');
-      try {
-        const token = await getLinbisAccessToken();
-        return res.json({ token });
-      } catch (error) {
-        console.error('[linbis-token] Error:', error);
-        return res.status(500).json({
-          error: error instanceof Error ? error.message : 'Internal server error',
-        });
-      }
-    }
-
-    // Cron / renovación completa (rewrite /api/* → /api puede enrutar aquí)
-    if (path === '/api/cron/renew-linbis-token' && (method === 'GET' || method === 'POST')) {
-      const isVercelCron = String(req.headers['user-agent'] || '').startsWith('vercel-cron/');
-      try {
-        if (method === 'POST') {
-          const cronSecret = process.env.CRON_SECRET;
-          if (!cronSecret || req.headers.authorization !== `Bearer ${cronSecret}`) {
-            return res.status(401).json({ success: false, error: 'Unauthorized' });
-          }
-        } else if (!isVercelCron) {
-          return res.status(401).json({ success: false, error: 'Unauthorized' });
-        }
-
-        const email = process.env.LINBIS_EMAIL;
-        const password = process.env.LINBIS_PASSWORD;
-        const clientId = process.env.LINBIS_CLIENT_ID;
-        if (!email || !password || !clientId) {
-          return res.status(500).json({ success: false, error: 'Configuración incompleta' });
-        }
-
-        console.log('[CRON via index] Renovando token Linbis…');
-        const tokens = await LinbisAuthService.getNewRefreshToken({
-          email,
-          password,
-          clientId,
-        });
-        await saveLinbisRefreshToken(tokens.refresh_token);
-        return res.json({
-          success: true,
-          message: 'Token renovado exitosamente',
-          timestamp: new Date().toISOString(),
-          expires_in: tokens.expires_in,
-        });
-      } catch (error: any) {
-        console.error('[CRON via index] Error:', error?.message || error);
-        return res.status(500).json({
-          success: false,
-          error: error?.message || 'Error renovando token',
-          timestamp: new Date().toISOString(),
-        });
-      }
-    }
-
-    // POST /api/admin/init-linbis-token - Inicializar token en MongoDB
-    if (path === '/api/admin/init-linbis-token' && method === 'POST') {
-      try {
-        const { refresh_token } = req.body as { refresh_token?: string };
-
-        if (!refresh_token) {
-          return res.status(400).json({ error: 'refresh_token is required' });
-        }
-
-        await saveLinbisRefreshToken(refresh_token);
-        console.log('[init-linbis-token] Refresh token initialized successfully');
-
-        return res.json({
-          success: true,
-          message: 'Refresh token initialized successfully',
-        });
-      } catch (error) {
-        console.error('[init-linbis-token] Error:', error);
-        return res.status(500).json({
-          error: error instanceof Error ? error.message : 'Internal server error',
-        });
-      }
-    }
-
-    // ============================================================
     // RUTAS DE SHIPSGO
     // ============================================================
 
@@ -6047,7 +5956,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             : d.contenidoBase64;
           const fileBuffer = Buffer.from(base64Content, 'base64');
           const docId = new mongoose.Types.ObjectId();
-          // La carpeta en R2 es el número de cotización stripped + 84 (offset de IDs internos de Linbis)
+          // La carpeta en R2 es el número de cotización stripped + 84 (offset de IDs internos históricos)
           const strippedNum = parseInt(String(quoteNumber).replace(/^[A-Za-z]+0*/, ''), 10);
           const quoteFolder = !isNaN(strippedNum) ? String(strippedNum + 84) : String(quoteNumber);
           const r2Key = buildDocR2Key('documentos', ownerUsername, quoteFolder, docId.toString(), String(d.nombreArchivo));
@@ -7148,9 +7057,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ============================================================
     // CHAT AI AGENT
     // ============================================================
-    if (path === '/api/chat' && (method === 'POST' || method === 'OPTIONS')) {
-      return chatHandler(req, res);
-    }
 
     // ============================================================
     // AGENCIA DE ADUANAS - CONFIG ENDPOINTS

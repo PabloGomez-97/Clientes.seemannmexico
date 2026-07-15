@@ -71,7 +71,7 @@ export const buildAereoOperationalPdfCharges = (params: {
   return charges;
 };
 
-export const buildAereoOperationalLinbisCharges = (params: {
+export const buildAereoOperationalCharges = (params: {
   billToName: string;
   incotermLabel: "DAP" | "DDP";
   realWeightKg: number;

@@ -2,7 +2,7 @@
  * Sistema de aduana / nacionalización exclusivo de Última Milla FCL DDP.
  * Independiente de Agencia de Aduanas y del módulo LCL.
  *
- * Cobros (orden Linbis/PDF):
+ * Cobros (orden PDF):
  *  - CUSTOMS DUTIES 6%    → CIF × 6%
  *  - CUSTOMS TAX 19%      → CIF × 19%
  *  - CUSTOMS BROKER       → max(CIF × 0.30%, 175 USD)
@@ -14,7 +14,7 @@
  * (costoTransporte = Handling + Bank + BL + TT + DTHC)
  */
 
-export interface FclDdpAduanaLinbisServiceDef {
+export interface FclDdpAduanaServiceDef {
   id: number;
   code: string;
   description: string;
@@ -58,7 +58,7 @@ export const FCL_DDP_ADUANA_SERVICES = {
     description: "Doc. Process",
     reference: "Amount to Doc. Process",
   },
-} as const satisfies Record<string, FclDdpAduanaLinbisServiceDef>;
+} as const satisfies Record<string, FclDdpAduanaServiceDef>;
 
 export interface FclDdpAduanaBreakdown {
   customsDuties6: number;
@@ -140,7 +140,7 @@ export const calculateFclDdpAduanaCharges = (params: {
 
 const FCL_DDP_ADUANA_ORDER: Array<{
   key: keyof FclDdpAduanaBreakdown;
-  service: FclDdpAduanaLinbisServiceDef;
+  service: FclDdpAduanaServiceDef;
 }> = [
   { key: "customsDuties6", service: FCL_DDP_ADUANA_SERVICES.customsDuties6 },
   { key: "customsTax19", service: FCL_DDP_ADUANA_SERVICES.customsTax19 },
@@ -162,7 +162,7 @@ export interface FclDdpAduanaPdfCharge {
   amount: number;
 }
 
-export const buildFclDdpAduanaLinbisCharges = (
+export const buildFclDdpAduanaCharges = (
   breakdown: FclDdpAduanaBreakdown,
   billToName: string,
   contextNote: string,

@@ -46,7 +46,6 @@ const COLUMNS: FooterColumn[] = [
       { labelKey: "footer.columns.resources.links.3", to: "/quotes" },
       { labelKey: "footer.columns.resources.links.4", to: "/itinerario" },
       { labelKey: "footer.columns.resources.links.5", to: "/trackings" },
-      { labelKey: "footer.columns.resources.links.6", to: "/air-shipments" },
     ],
   },
   {

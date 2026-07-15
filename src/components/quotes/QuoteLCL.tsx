@@ -5,7 +5,6 @@ import {
   useMemo,
   type MutableRefObject,
 } from "react";
-// Sin Linbis: no usamos OutletContext
 import { useAuth } from "../../auth/AuthContext";
 import { useAuditLog } from "../../hooks/useAuditLog";
 import * as XLSX from "xlsx";
@@ -69,7 +68,6 @@ import {
   OversizeNotifyExecutive,
   type OversizeReason,
 } from "./Handlers/Air/OversizeNotifyExecutive";
-// Linbis removido: cotizaciones México usan R2/Mongo
 import {
   fetchExpandedRoutes,
   fetchCountryPorts,
@@ -218,7 +216,6 @@ function QuoteLCL({
 }: QuoteLCLProps & {
   abandonRef?: MutableRefObject<(() => void) | null>;
 } = {}) {
-  // México: cotizaciones sin Linbis (solo JWT del portal)
   const {
     user,
     token: jwtToken,

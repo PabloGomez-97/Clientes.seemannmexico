@@ -1,7 +1,6 @@
 export const GOOGLE_SHEET_CSV_URL =
   "https://docs.google.com/spreadsheets/d/e/2PACX-1vSWzBbNU6lsWnVEhRgzTPNEjtq-eH59rGSQf3QS6UGiRHT98A-g3LumdtuFHKb5lcGmERT4nZjAbMhm/pub?output=csv";
 
-// Sin Linbis: no usamos OutletContext en cotizaciones México
 
 export interface RutaFCL {
   id: string;

@@ -213,7 +213,7 @@
       "help": "Help"
     },
     "userLayout": {
-      "linbisTokenError": "Could not obtain Linbis token",
+      "sessionError": "Could not complete the session",
       "unknownError": "Unknown error",
       "loading": "Loading...",
       "startingSystem": "Starting System",
@@ -1132,7 +1132,7 @@
     "cargandoConfig": "Loading configuration...",
     "errorValorProducto": "You must enter the Product Value.",
     "errorCostoTransporte": "You must enter the Transport Cost.",
-    "errorTokenLoading": "Wait for the Linbis connection to load.",
+    "errorTokenLoading": "Wait for the session to load.",
     "errorPayload": "Could not generate the quotation payload.",
     "successConNumero": "Quotation {{numero}} generated successfully.",
     "successSinNumero": "Quotation generated successfully (downloading PDF)."

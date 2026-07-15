@@ -5,7 +5,6 @@ import {
   useRef,
   type MutableRefObject,
 } from "react";
-// Sin Linbis: no usamos OutletContext
 import { useAuth } from "../../auth/AuthContext";
 import { useAuditLog } from "../../hooks/useAuditLog";
 import { packageTypeOptions } from "./PackageTypes/PiecestypesAIR";
@@ -118,7 +117,6 @@ import {
   getCurrentAirMarketMinPrices,
 } from "./Handlers/Air/HandlerQuoteAirHistorical";
 import { mergeCurrentRatesIntoPriceHistory } from "./Handlers/shared/mergeCurrentPriceHistory";
-// Linbis removido: cotizaciones México usan R2/Mongo
 import {
   SIMULATION_MISSING_VALUE,
   getSimulationIncomeRate,
@@ -243,7 +241,6 @@ function QuoteAPITester({
 }: QuoteAIRProps & {
   abandonRef?: MutableRefObject<(() => void) | null>;
 } = {}) {
-  // México: cotizaciones sin Linbis (solo JWT del portal)
   const {
     user,
     token,

@@ -241,7 +241,7 @@ function PrivacyPolicy() {
                       </td>
                       <td>
                         Contenido de mensajes enviados a través de nuestro
-                        chatbot, formularios de contacto y correo electrónico
+                        formularios de contacto y correo electrónico
                       </td>
                       <td>Generados por el usuario</td>
                     </tr>
@@ -363,7 +363,7 @@ function PrivacyPolicy() {
                 </li>
                 <li>
                   <strong>Atención al cliente:</strong> Gestión de solicitudes,
-                  reclamos, consultas y soporte técnico a través del chatbot y
+                  reclamos, consultas y soporte técnico a través de
                   canales convencionales.
                 </li>
               </ul>

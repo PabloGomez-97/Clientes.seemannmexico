@@ -19,14 +19,11 @@ import Home from "./components/cliente/home/Home";
 // Admin Views
 import UsersManagement from "./components/administrador/Administracion-Cuentas/users-management";
 import SettingsAdmin from "./components/administrador/Administracion-Cuentas/clientes-ejecutivos";
-import ReporteriaLayout from "./components/administrador/reporteria/ReporteriaLayout";
-import ReportExecutive from "./components/administrador/Facturaciones-Ejecutivos/Reporteriaexecutivo";
 import Cotizadoradministrador from "./components/administrador/Cotizador-Administrador/Cotizador-administrador";
 import SimuladorCotizaciones from "./components/administrador/Simulador-Cotizador/SimuladorCotizaciones";
 import Clientesejecutivos from "./components/administrador/Administracion-Cuentas/clientes-ejecutivos";
 import ShipsGoTrackingAdmin from "./components/administrador/Shipsgo/gettrackingshipsgo-admin";
 import ShipsGoTrackingAdminOP from "./components/administrador/Shipsgo/OP-trackeo";
-import Invoicesxejecutivo from "./components/administrador/Facturaciones-Ejecutivos/Facturaciones";
 import GestorTarifas from "./components/Pricing/GestorTarifas";
 import TarifarioCompleto from "./components/Pricing/TarifarioCompleto";
 import HomePricing from "./components/Pricing/HomePricing";
@@ -44,12 +41,6 @@ import ComportamientoDeClientes from "./components/administrador/CustomerBehavio
 import OPComportamientoDeClientes from "./components/administrador/CustomerBehaviorTracking/OP-ComportamientoDeClientes";
 import PricingAlertsPanel from "./components/administrador/PricingAlerts/PricingAlertsPanel";
 
-// Reportería Pages
-import ReporteriaDashboard from "./components/administrador/reporteria/pages/ReporteriaDashboard";
-import ReporteriaKPIs from "./components/administrador/reporteria/pages/ReporteriaKPIs";
-import ReporteriaExecutives from "./components/administrador/reporteria/pages/ReporteriaExecutives";
-import ReporteriaTrends from "./components/administrador/reporteria/pages/ReporteriaTrends";
-
 // Quotes View
 import QuoteLCL from "./components/quotes/QuoteLCL";
 import QuoteFCL from "./components/quotes/QuoteFCL";
@@ -58,17 +49,11 @@ import QuoteAIR from "./components/quotes/QuoteAIR";
 // User Views
 import Cotizador from "./components/Sidebar/Newquotes";
 import QuotesView from "./components/Sidebar/QuotesView";
-import AirShipmentsView from "./components/shipments/AirShipmentsView";
-import OceanShipmentsView from "./components/shipments/OceanShipmentsView";
-import GroundShipmentsView from "./components/shipments/GroundShipmentsView";
-import Financiera from "./components/Sidebar/ReporteriaFinanciera";
 import Settings from "./components/settings/Settings";
-import ReporteriaOperacional from "./components/Sidebar/ReporteriaOperacional";
 import ShipsGoTracking from "./components/Sidebar/Shipsgotracking";
 import CreateShipmentForm from "./components/Sidebar/New-tracking";
 import CreateOceanShipmentForm from "./components/Sidebar/New-ocean-tracking";
 import Novedades from "./components/Sidebar/Novedades";
-import ShippingOrderView from "./components/Sidebar/ShippingOrder";
 import CotizacionEspecial from "./components/Sidebar/Cotizacion-especial";
 import MisDocumentosCliente from "./components/Sidebar/MisDocumentosCliente";
 import PrivacyPolicy from "./components/Footer/PrivacyPolicy";
@@ -102,7 +87,6 @@ function HomeSwitch() {
 function App() {
   const { user, loading } = useAuth();
 
-  // Helper para determinar la ruta de inicio según el tipo de usuario
   const getHomeRoute = () => {
     if (!user) return "/login";
     if (user.username === "Ejecutivo") {
@@ -115,7 +99,6 @@ function App() {
   return (
     <>
       <Routes>
-        {/* Ruta de Login */}
         <Route
           path="/login"
           element={
@@ -127,7 +110,6 @@ function App() {
           }
         />
 
-        {/* Ruta de Login Administrativo */}
         <Route
           path="/login-admin"
           element={
@@ -139,7 +121,6 @@ function App() {
           }
         />
 
-        {/* Ruta de Login Proveedor */}
         <Route
           path="/login-proveedor"
           element={
@@ -151,7 +132,6 @@ function App() {
           }
         />
 
-        {/* Rutas de Ejecutivo */}
         <Route
           path="/admin"
           element={
@@ -184,8 +164,6 @@ function App() {
             element={<OPDocumentacion />}
           />
           <Route path="users" element={<UsersManagement />} />
-          <Route path="reportexecutive" element={<ReportExecutive />} />
-          <Route path="reportoperational" element={<Invoicesxejecutivo />} />
           <Route
             path="trackeos/:clientUsername?"
             element={<ShipsGoTrackingAdmin />}
@@ -204,18 +182,6 @@ function App() {
             path="documentos-proveedores"
             element={<DocumentosProveedores />}
           />
-
-          {/* Rutas de Reportería con subrutas */}
-          <Route path="reporteria" element={<ReporteriaLayout />}>
-            <Route
-              index
-              element={<Navigate to="/admin/reporteria/dashboard" replace />}
-            />
-            <Route path="dashboard" element={<ReporteriaDashboard />} />
-            <Route path="kpis" element={<ReporteriaKPIs />} />
-            <Route path="ejecutivos" element={<ReporteriaExecutives />} />
-            <Route path="tendencias" element={<ReporteriaTrends />} />
-          </Route>
           <Route path="auditoria" element={<Auditoria />} />
           <Route path="agencia-aduanas" element={<AgenciaAduanas />} />
           <Route path="gestion-cotizador" element={<GestionCotizador />} />
@@ -231,7 +197,6 @@ function App() {
           <Route path="settings" element={<SettingsAdmin />} />
         </Route>
 
-        {/* Rutas de Proveedor */}
         <Route
           path="/proveedor"
           element={
@@ -253,7 +218,6 @@ function App() {
           <Route path="ayuda" element={<NecesitasAyuda />} />
         </Route>
 
-        {/* Rutas de Usuario Regular */}
         <Route
           path="/"
           element={
@@ -268,7 +232,6 @@ function App() {
           <Route path="QuoteAIR" element={<QuoteAIR />} />
           <Route path="QuoteLCL" element={<QuoteLCL />} />
           <Route path="QuoteFCL" element={<QuoteFCL />} />
-          <Route path="air-shipments" element={<AirShipmentsView />} />
           <Route path="trackings" element={<ShipsGoTracking />} />
           <Route
             path="trackings-aereo"
@@ -278,13 +241,8 @@ function App() {
             path="trackings-maritimo"
             element={<ShipsGoTracking initialTab="ocean" />}
           />
-          <Route path="ocean-shipments" element={<OceanShipmentsView />} />
-          <Route path="ground-shipments" element={<GroundShipmentsView />} />
-          <Route path="shipping-orders" element={<ShippingOrderView />} />
           <Route path="cotizacion-especial" element={<CotizacionEspecial />} />
-          <Route path="financiera" element={<Financiera />} />
           <Route path="settings" element={<Settings />} />
-          <Route path="operacional" element={<ReporteriaOperacional />} />
           <Route path="new-tracking" element={<CreateShipmentForm />} />
           <Route
             path="new-ocean-tracking"
@@ -299,12 +257,10 @@ function App() {
           <Route path="itinerario" element={<ItinerarioPage />} />
         </Route>
 
-        {/* Rutas públicas legales */}
         <Route path="/privacy-policy" element={<PrivacyPolicy />} />
         <Route path="/terms-of-service" element={<TermsOfService />} />
         <Route path="/cookie-settings" element={<CookiesSettings />} />
 
-        {/* Ruta por defecto */}
         <Route path="*" element={<Navigate to={getHomeRoute()} replace />} />
       </Routes>
       <SpeedInsights />

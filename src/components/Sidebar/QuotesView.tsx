@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useOutletContext, useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { useClientOverride } from "../../contexts/ClientOverrideContext";
 import { useTranslation } from "react-i18next";
@@ -8,12 +8,6 @@ import { DocumentosSection } from "./Documents/DocumentosSection";
 import PageBannerHeader from "../shared/layout/PageBannerHeader";
 import QuotePdfResendCell from "./QuotePdfResendCell";
 import "./styles/QuotesView.css";
-
-interface OutletContext {
-  accessToken: string;
-  refreshAccessToken: () => Promise<string>;
-  onLogout: () => void;
-}
 
 interface Quote {
   id?: string | number;

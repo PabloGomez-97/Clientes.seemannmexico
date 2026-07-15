@@ -13,7 +13,7 @@
  * (costoTransporte = Handling + Bank + GL + DOC + DELV; igual que antes)
  */
 
-export interface LclDdpAduanaLinbisServiceDef {
+export interface LclDdpAduanaServiceDef {
   id: number;
   code: string;
   description: string;
@@ -51,7 +51,7 @@ export const LCL_DDP_ADUANA_SERVICES = {
     description: "Extraport expenses",
     reference: "Amount to Extraport expenses",
   },
-} as const satisfies Record<string, LclDdpAduanaLinbisServiceDef>;
+} as const satisfies Record<string, LclDdpAduanaServiceDef>;
 
 export interface LclDdpAduanaBreakdown {
   customsTax19: number;
@@ -154,7 +154,7 @@ export const calculateLclDdpAduanaCharges = (params: {
 
 const LCL_DDP_ADUANA_ORDER: Array<{
   key: keyof LclDdpAduanaBreakdown;
-  service: LclDdpAduanaLinbisServiceDef;
+  service: LclDdpAduanaServiceDef;
 }> = [
   { key: "customsTax19", service: LCL_DDP_ADUANA_SERVICES.customsTax19 },
   { key: "customsDuties6", service: LCL_DDP_ADUANA_SERVICES.customsDuties6 },
@@ -178,7 +178,7 @@ export interface LclDdpAduanaPdfCharge {
   amount: number;
 }
 
-export const buildLclDdpAduanaLinbisCharges = (
+export const buildLclDdpAduanaCharges = (
   breakdown: LclDdpAduanaBreakdown,
   billToName: string,
   contextNote: string,

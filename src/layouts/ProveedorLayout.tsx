@@ -83,7 +83,6 @@ function ProveedorLayout() {
         style={{ overflow: "hidden" }}
       >
         <NavbarAdmin
-          accessToken=""
           onLogout={() => {}}
           toggleSidebar={toggleSidebar}
           isSidebarCollapsed={sidebarCollapsed}
