@@ -1,11 +1,27 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command, DeleteObjectsCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 
+function cleanEnv(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim().replace(/^["']|["']$/g, '');
+  return trimmed || undefined;
+}
+
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID!;
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID!;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY!;
-const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME || 'seemann-quotepdfs';
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL!; // e.g. https://pub-7ac1....r2.dev
+
+/** Cotizaciones México: preferir R2_BUCKET_MEXICO / R2_PUBLIC_URL_MEXICO. */
+const R2_BUCKET_NAME =
+  cleanEnv(process.env.R2_BUCKET_MEXICO) ||
+  cleanEnv(process.env.R2_BUCKET_QUOTES_MEXICO) ||
+  cleanEnv(process.env.R2_BUCKET_NAME) ||
+  'seemannquotesmexico';
+
+const R2_PUBLIC_URL =
+  cleanEnv(process.env.R2_PUBLIC_URL_MEXICO) ||
+  cleanEnv(process.env.R2_PUBLIC_URL) ||
+  '';
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -30,7 +46,12 @@ export function buildR2Key(usuarioId: string, quoteNumber: string): string {
  * Get the public download URL for a stored PDF.
  */
 export function getPublicUrl(key: string): string {
-  return `${R2_PUBLIC_URL}/${key}`;
+  if (!R2_PUBLIC_URL) {
+    throw new Error(
+      'Missing env var: R2_PUBLIC_URL_MEXICO (or R2_PUBLIC_URL)',
+    );
+  }
+  return `${R2_PUBLIC_URL.replace(/\/$/, '')}/${key}`;
 }
 
 /**

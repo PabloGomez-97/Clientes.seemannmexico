@@ -4204,10 +4204,20 @@ app.get('/api/quotes/:number', auth, async (req, res) => {
     );
 
     const number = decodeURIComponent(String(req.params.number || ''));
-    const index = await QuoteIndex.findOne({ number, usuarioId: ownerUsername });
+    const index = await QuoteIndex.findOne({ number, usuarioId: ownerUsername }).lean();
     if (!index) return res.status(404).json({ error: 'Cotización no encontrada' });
 
-    const jsonBuffer = await getMexicoQuoteJsonBuffer(ownerUsername, number);
+    const jsonBuffer = await getMexicoQuoteJsonBuffer(
+      ownerUsername,
+      number,
+      index.jsonKey,
+    );
+    if (!jsonBuffer) {
+      return res.status(404).json({
+        error:
+          'El archivo de esta cotización no está disponible en R2 (índice huérfano o archivo eliminado).',
+      });
+    }
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     return res.status(200).send(jsonBuffer);
   } catch (error: any) {
@@ -4225,10 +4235,20 @@ app.get('/api/quotes/:number/pdf', auth, async (req, res) => {
     );
 
     const number = decodeURIComponent(String(req.params.number || ''));
-    const index = await QuoteIndex.findOne({ number, usuarioId: ownerUsername });
+    const index = await QuoteIndex.findOne({ number, usuarioId: ownerUsername }).lean();
     if (!index) return res.status(404).json({ error: 'Cotización no encontrada' });
 
-    const pdfBuffer = await getMexicoQuotePdfBuffer(ownerUsername, number);
+    const pdfBuffer = await getMexicoQuotePdfBuffer(
+      ownerUsername,
+      number,
+      index.pdfKey,
+    );
+    if (!pdfBuffer) {
+      return res.status(404).json({
+        error:
+          'El PDF de esta cotización no está disponible en R2 (índice huérfano o archivo eliminado).',
+      });
+    }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
@@ -6374,7 +6394,11 @@ app.post('/api/quote-pdf/resend', auth, async (req, res) => {
       return res.status(404).json({ error: 'PDF de cotización no encontrado' });
     }
 
-    const pdfBuffer = await getMexicoQuotePdfBuffer(ownerUsername, number);
+    const pdfBuffer = await getMexicoQuotePdfBuffer(
+      ownerUsername,
+      number,
+      (index as any).pdfKey,
+    );
     if (!pdfBuffer?.length) {
       return res.status(404).json({ error: 'PDF de cotización no disponible' });
     }

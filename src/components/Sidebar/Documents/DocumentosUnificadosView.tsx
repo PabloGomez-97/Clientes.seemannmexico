@@ -83,6 +83,35 @@ const FILE_BADGES: Array<{ match: string; label: string }> = [
   { match: "document", label: "DOC" },
 ];
 
+const UPLOAD_DOC_TYPES = [
+  "Orden de compra",
+  "Invoice",
+  "Packing List",
+  "Certificado de Origen",
+  "Póliza de seguro",
+  "Guía de Despacho",
+  "Declaración de Ingreso",
+] as const;
+
+type UploadDocType = (typeof UPLOAD_DOC_TYPES)[number];
+
+const UPLOAD_ALLOWED_MIME = [
+  "application/pdf",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function normalizeText(value: unknown) {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
@@ -250,6 +279,9 @@ export function DocumentosUnificadosView({
     Record<string, ReferenceMeta>
   >({});
   const [expandedGroups, setExpandedGroups] = useState<string[]>([]);
+  const [uploadReference, setUploadReference] = useState("");
+  const [uploadTipo, setUploadTipo] = useState<UploadDocType>("Invoice");
+  const [uploading, setUploading] = useState(false);
 
   const loadReferenceMap = useCallback(async (sourceDocs: AllDocs) => {
     const nextMap: Record<string, ReferenceMeta> = {};
@@ -458,32 +490,81 @@ export function DocumentosUnificadosView({
         };
       }
 
-      const targetTab = group.type;
       if (isAdmin) {
         return {
           to: `/admin/reporteriaclientes/${encodeURIComponent(ownerUsername)}`,
           state: {
-            targetTab,
+            targetTab: "seguimientos" as const,
             shipmentFilterNumber: lookup,
           },
         };
       }
 
-      const route =
-        group.type === "air"
-          ? "/air-shipments"
-          : group.type === "ocean"
-            ? "/ocean-shipments"
-            : "/ground-shipments";
-
       return {
-        to: route,
+        to: "/trackings",
         state: {
           shipmentFilterNumber: lookup,
         },
       };
     },
     [location.pathname, ownerUsername],
+  );
+
+  const handleUpload = useCallback(
+    async (fileList: FileList | null) => {
+      if (!token || !ownerUsername || !fileList?.length) return;
+
+      const reference = uploadReference.trim();
+      if (!reference) {
+        setError("Indica el folio de cotización o una referencia.");
+        return;
+      }
+
+      const file = fileList[0];
+      if (file.size > 5 * 1024 * 1024) {
+        setError(`"${file.name}" excede el máximo de 5MB.`);
+        return;
+      }
+      if (!UPLOAD_ALLOWED_MIME.includes(file.type)) {
+        setError("Solo se permiten PDF, Excel o Word.");
+        return;
+      }
+
+      setUploading(true);
+      setError(null);
+      try {
+        const contenidoBase64 = await fileToBase64(file);
+        const res = await fetch("/api/documentos/upload", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            quoteId: reference,
+            ownerUsername,
+            tipo: uploadTipo,
+            nombreArchivo: file.name,
+            contenidoBase64,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Error al subir documento");
+        }
+
+        setSuccessMsg(`"${file.name}" subido correctamente`);
+        setTimeout(() => setSuccessMsg(null), 4000);
+        setUploadReference("");
+        await loadDocs(true);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Error al subir documento");
+      } finally {
+        setUploading(false);
+      }
+    },
+    [loadDocs, ownerUsername, token, uploadReference, uploadTipo],
   );
 
   const handleDownload = useCallback(
@@ -583,40 +664,100 @@ export function DocumentosUnificadosView({
         </div>
       )}
 
-      {/* Hint sobre subida de documentos */}
+      {/* Subida directa a R2 México (seemanndocumentsmexico) */}
       <div
         style={{
-          display: "flex",
-          alignItems: "flex-start",
-          gap: 10,
-          padding: "10px 14px",
-          background: "#eff6ff",
-          border: "1px solid #bfdbfe",
+          display: "grid",
+          gap: 12,
+          padding: "14px 16px",
+          background: "#f8fafc",
+          border: "1px solid #e2e8f0",
           borderRadius: 8,
           marginBottom: 20,
-          fontSize: 12,
-          color: "#1d4ed8",
-          lineHeight: 1.5,
         }}
       >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          style={{ marginTop: 1, flexShrink: 0 }}
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#0f172a" }}>
+          Subir documento
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(160px, 1.2fr) minmax(160px, 1fr) auto",
+            gap: 10,
+            alignItems: "end",
+          }}
         >
-          <circle cx="12" cy="12" r="10" />
-          <line x1="12" y1="8" x2="12.01" y2="8" />
-          <line x1="12" y1="12" x2="12" y2="16" />
-        </svg>
-        <span>
-          Para <strong>subir nuevos documentos</strong>, ve a la sección de
-          operaciones correspondiente (Aérea, Marítima o Terrestre) y ábrelos
-          desde allí.
-        </span>
+          <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#475569" }}>
+            Folio / referencia
+            <input
+              type="text"
+              value={uploadReference}
+              onChange={(e) => setUploadReference(e.target.value)}
+              placeholder="Ej. cotización o ref. interna"
+              disabled={uploading}
+              style={{
+                height: 36,
+                border: "1px solid #cbd5e1",
+                borderRadius: 6,
+                padding: "0 10px",
+                fontSize: 13,
+              }}
+            />
+          </label>
+          <label style={{ display: "grid", gap: 4, fontSize: 12, color: "#475569" }}>
+            Tipo
+            <select
+              value={uploadTipo}
+              onChange={(e) => setUploadTipo(e.target.value as UploadDocType)}
+              disabled={uploading}
+              style={{
+                height: 36,
+                border: "1px solid #cbd5e1",
+                borderRadius: 6,
+                padding: "0 10px",
+                fontSize: 13,
+                background: "#fff",
+              }}
+            >
+              {UPLOAD_DOC_TYPES.map((tipo) => (
+                <option key={tipo} value={tipo}>
+                  {tipo}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: 36,
+              padding: "0 14px",
+              borderRadius: 6,
+              background: uploading ? "#94a3b8" : "#ff6200",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: uploading ? "default" : "pointer",
+            }}
+          >
+            {uploading ? "Subiendo…" : "Seleccionar archivo"}
+            <input
+              type="file"
+              accept=".pdf,.doc,.docx,.xls,.xlsx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              disabled={uploading}
+              style={{ display: "none" }}
+              onChange={(e) => {
+                void handleUpload(e.target.files);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+        <div style={{ fontSize: 11, color: "#64748b" }}>
+          PDF, Excel o Word · máx. 5MB · se guarda en el bucket México de
+          documentos.
+        </div>
       </div>
 
       <section className="doc-metrics-strip" aria-label="Resumen de documentos">

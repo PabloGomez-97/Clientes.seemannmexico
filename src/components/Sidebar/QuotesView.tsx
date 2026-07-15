@@ -930,11 +930,21 @@ function QuotesView({
           `/api/quotes/${encodeURIComponent(quoteNumber)}?${params.toString()}`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
-        if (!res.ok) throw new Error("No se pudo cargar el detalle");
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(
+            errBody.error || "No se pudo cargar el detalle de la cotización",
+          );
+        }
         const data = await res.json();
         setQuoteDetails((prev) => ({ ...prev, [quoteNumber]: data }));
       } catch (err) {
         console.error("[QuotesView] Error cargando detalle:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "No se pudo cargar el detalle de la cotización",
+        );
       } finally {
         setLoadingDetails((prev) => ({ ...prev, [quoteNumber]: false }));
       }

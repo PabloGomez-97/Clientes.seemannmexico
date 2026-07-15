@@ -2221,13 +2221,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const index = await QuoteIndex.findOne({
           number,
           usuarioId: ownerUsername,
-        });
+        }).lean();
         if (!index) {
           return res.status(404).json({ error: 'Cotización no encontrada' });
         }
 
         if (isPdf) {
-          const pdfBuffer = await getMexicoQuotePdfBuffer(ownerUsername, number);
+          const pdfBuffer = await getMexicoQuotePdfBuffer(
+            ownerUsername,
+            number,
+            index.pdfKey,
+          );
+          if (!pdfBuffer) {
+            return res.status(404).json({
+              error:
+                'El PDF de esta cotización no está disponible en R2 (índice huérfano o archivo eliminado).',
+            });
+          }
           res.setHeader('Content-Type', 'application/pdf');
           res.setHeader(
             'Content-Disposition',
@@ -2236,7 +2246,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.end(pdfBuffer);
         }
 
-        const jsonBuffer = await getMexicoQuoteJsonBuffer(ownerUsername, number);
+        const jsonBuffer = await getMexicoQuoteJsonBuffer(
+          ownerUsername,
+          number,
+          index.jsonKey,
+        );
+        if (!jsonBuffer) {
+          return res.status(404).json({
+            error:
+              'El archivo de esta cotización no está disponible en R2 (índice huérfano o archivo eliminado).',
+          });
+        }
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         return res.status(200).send(jsonBuffer);
       }
@@ -4421,7 +4441,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           usuarioId: ownerUsername
         });
 
-        console.log(`[documentos] Documento subido: ${nuevoDocumento._id}`);
+        console.log(
+          `[documentos] Documento subido: ${nuevoDocumento._id} → bucket México r2Key=${r2Key}`,
+        );
 
         // Fire-and-forget: notificar por email
         sendDocumentUploadNotification({
@@ -6504,7 +6526,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return res.status(404).json({ error: 'PDF de cotización no encontrado' });
         }
 
-        const pdfBuffer = await getMexicoQuotePdfBuffer(ownerUsername, number);
+        const pdfBuffer = await getMexicoQuotePdfBuffer(
+          ownerUsername,
+          number,
+          index.pdfKey,
+        );
         if (!pdfBuffer?.length) {
           return res.status(404).json({ error: 'PDF de cotización no disponible' });
         }

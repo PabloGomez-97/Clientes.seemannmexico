@@ -6,19 +6,21 @@ import {
 } from "@aws-sdk/client-s3";
 import { Readable } from "stream";
 
+function cleanEnv(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim().replace(/^["']|["']$/g, "");
+  return trimmed || undefined;
+}
+
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID!;
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID!;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY!;
 
 // Bucket exclusivo para cotizaciones México (JSON + PDF)
 const R2_BUCKET_MEXICO =
-  process.env.R2_BUCKET_MEXICO || process.env.R2_BUCKET_QUOTES_MEXICO;
-
-if (!R2_BUCKET_MEXICO) {
-  throw new Error(
-    "Missing env var: R2_BUCKET_MEXICO (or R2_BUCKET_QUOTES_MEXICO)",
-  );
-}
+  cleanEnv(process.env.R2_BUCKET_MEXICO) ||
+  cleanEnv(process.env.R2_BUCKET_QUOTES_MEXICO) ||
+  "seemannquotesmexico";
 
 const s3Client = new S3Client({
   region: "auto",
@@ -30,7 +32,6 @@ const s3Client = new S3Client({
 });
 
 function safeSegment(value: string): string {
-  // Mantener el path estable y sin caracteres raros
   return encodeURIComponent(String(value).trim());
 }
 
@@ -52,14 +53,27 @@ export function buildMexicoQuotePdfKey(
   return `quotes/${safeOwner}/${safeQuote}.pdf`;
 }
 
-// Legacy (antes de separar por consignee)
 function buildLegacyJsonKey(quoteNumber: string): string {
-  const safeQuote = encodeURIComponent(String(quoteNumber));
-  return `quotes/${safeQuote}.json`;
+  return `quotes/${encodeURIComponent(String(quoteNumber))}.json`;
 }
+
 function buildLegacyPdfKey(quoteNumber: string): string {
-  const safeQuote = encodeURIComponent(String(quoteNumber));
-  return `quotes/${safeQuote}.pdf`;
+  return `quotes/${encodeURIComponent(String(quoteNumber))}.pdf`;
+}
+
+function isNotFoundError(error: unknown): boolean {
+  const e = error as {
+    name?: string;
+    Code?: string;
+    $metadata?: { httpStatusCode?: number };
+  };
+  return (
+    e?.name === "NoSuchKey" ||
+    e?.name === "NotFound" ||
+    e?.Code === "NoSuchKey" ||
+    e?.Code === "NotFound" ||
+    e?.$metadata?.httpStatusCode === 404
+  );
 }
 
 async function streamToBuffer(body: any): Promise<Buffer> {
@@ -87,6 +101,67 @@ async function streamToBuffer(body: any): Promise<Buffer> {
   return Buffer.concat(chunks.map((c) => Buffer.from(c)));
 }
 
+async function getObjectBuffer(key: string): Promise<Buffer | null> {
+  try {
+    const res = await s3Client.send(
+      new GetObjectCommand({
+        Bucket: R2_BUCKET_MEXICO,
+        Key: key,
+      }),
+    );
+    return streamToBuffer(res.Body);
+  } catch (error) {
+    if (isNotFoundError(error)) return null;
+    throw error;
+  }
+}
+
+async function objectExists(key: string): Promise<boolean> {
+  try {
+    await s3Client.send(
+      new HeadObjectCommand({
+        Bucket: R2_BUCKET_MEXICO,
+        Key: key,
+      }),
+    );
+    return true;
+  } catch (error) {
+    if (isNotFoundError(error)) return false;
+    throw error;
+  }
+}
+
+function jsonKeyCandidates(
+  ownerUsername: string,
+  quoteNumber: string,
+  preferredKey?: string | null,
+): string[] {
+  const owner = String(ownerUsername || "").trim();
+  const number = String(quoteNumber || "").trim();
+  return [
+    preferredKey || "",
+    buildMexicoQuoteJsonKey(owner, number),
+    // Sin encode (mismo para alfanuméricos; útil si hay keys crudas)
+    `quotes/${owner}/${number}.json`,
+    buildLegacyJsonKey(number),
+  ].filter((key, index, arr) => Boolean(key) && arr.indexOf(key) === index);
+}
+
+function pdfKeyCandidates(
+  ownerUsername: string,
+  quoteNumber: string,
+  preferredKey?: string | null,
+): string[] {
+  const owner = String(ownerUsername || "").trim();
+  const number = String(quoteNumber || "").trim();
+  return [
+    preferredKey || "",
+    buildMexicoQuotePdfKey(owner, number),
+    `quotes/${owner}/${number}.pdf`,
+    buildLegacyPdfKey(number),
+  ].filter((key, index, arr) => Boolean(key) && arr.indexOf(key) === index);
+}
+
 export async function putMexicoQuoteJson(
   ownerUsername: string,
   quoteNumber: string,
@@ -112,27 +187,13 @@ export async function putMexicoQuoteJson(
 export async function getMexicoQuoteJsonBuffer(
   ownerUsername: string,
   quoteNumber: string,
-): Promise<Buffer> {
-  const key = buildMexicoQuoteJsonKey(ownerUsername, quoteNumber);
-  try {
-    const res = await s3Client.send(
-      new GetObjectCommand({
-        Bucket: R2_BUCKET_MEXICO,
-        Key: key,
-      }),
-    );
-    return streamToBuffer(res.Body);
-  } catch {
-    // fallback legacy
-    const legacyKey = buildLegacyJsonKey(quoteNumber);
-    const resLegacy = await s3Client.send(
-      new GetObjectCommand({
-        Bucket: R2_BUCKET_MEXICO,
-        Key: legacyKey,
-      }),
-    );
-    return streamToBuffer(resLegacy.Body);
+  preferredKey?: string | null,
+): Promise<Buffer | null> {
+  for (const key of jsonKeyCandidates(ownerUsername, quoteNumber, preferredKey)) {
+    const buffer = await getObjectBuffer(key);
+    if (buffer) return buffer;
   }
+  return null;
 }
 
 export async function putMexicoQuotePdf(
@@ -157,55 +218,37 @@ export async function putMexicoQuotePdf(
 export async function getMexicoQuotePdfBuffer(
   ownerUsername: string,
   quoteNumber: string,
-): Promise<Buffer> {
-  const key = buildMexicoQuotePdfKey(ownerUsername, quoteNumber);
-  try {
-    const res = await s3Client.send(
-      new GetObjectCommand({
-        Bucket: R2_BUCKET_MEXICO,
-        Key: key,
-      }),
-    );
-    return streamToBuffer(res.Body);
-  } catch {
-    // fallback legacy
-    const legacyKey = buildLegacyPdfKey(quoteNumber);
-    const resLegacy = await s3Client.send(
-      new GetObjectCommand({
-        Bucket: R2_BUCKET_MEXICO,
-        Key: legacyKey,
-      }),
-    );
-    return streamToBuffer(resLegacy.Body);
+  preferredKey?: string | null,
+): Promise<Buffer | null> {
+  for (const key of pdfKeyCandidates(ownerUsername, quoteNumber, preferredKey)) {
+    const buffer = await getObjectBuffer(key);
+    if (buffer) return buffer;
   }
+  return null;
 }
 
 export async function mexicoQuotePdfExists(
   ownerUsername: string,
   quoteNumber: string,
+  preferredKey?: string | null,
 ): Promise<boolean> {
-  const key = buildMexicoQuotePdfKey(ownerUsername, quoteNumber);
-  try {
-    await s3Client.send(
-      new HeadObjectCommand({
-        Bucket: R2_BUCKET_MEXICO,
-        Key: key,
-      }),
-    );
-    return true;
-  } catch {
-    // fallback legacy
-    try {
-      await s3Client.send(
-        new HeadObjectCommand({
-          Bucket: R2_BUCKET_MEXICO,
-          Key: buildLegacyPdfKey(quoteNumber),
-        }),
-      );
-      return true;
-    } catch {
-      return false;
-    }
+  for (const key of pdfKeyCandidates(ownerUsername, quoteNumber, preferredKey)) {
+    if (await objectExists(key)) return true;
   }
+  return false;
 }
 
+export async function mexicoQuoteJsonExists(
+  ownerUsername: string,
+  quoteNumber: string,
+  preferredKey?: string | null,
+): Promise<boolean> {
+  for (const key of jsonKeyCandidates(ownerUsername, quoteNumber, preferredKey)) {
+    if (await objectExists(key)) return true;
+  }
+  return false;
+}
+
+export function getMexicoQuotesBucketName(): string {
+  return R2_BUCKET_MEXICO;
+}

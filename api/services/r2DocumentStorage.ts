@@ -1,10 +1,25 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 
+function cleanEnv(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim().replace(/^["']|["']$/g, '');
+  return trimmed || undefined;
+}
+
 const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID!;
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID!;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY!;
-const R2_BUCKET_DOCUMENTS = process.env.R2_BUCKET_DOCUMENTS || 'seemann-documentos';
+
+/** Bucket de documentos Seemann México (nunca el bucket genérico Chile). */
+const R2_BUCKET_DOCUMENTS =
+  cleanEnv(process.env.R2_BUCKET_DOCUMENTS_MEXICO) ||
+  cleanEnv(process.env.R2_BUCKET_DOCUMENTS) ||
+  'seemanndocumentsmexico';
+
+const R2_PUBLIC_DOCUMENTS =
+  cleanEnv(process.env.R2_PUBLIC_DOCUMENTS_MEXICO) ||
+  cleanEnv(process.env.R2_PUBLIC_DOCUMENTS);
 
 const s3Client = new S3Client({
   region: 'auto',
@@ -18,12 +33,6 @@ const s3Client = new S3Client({
 /**
  * Build the R2 object key for a document.
  * Pattern: {prefix}/{usuarioId}/{parentId}/{docId}_{nombreArchivo}
- *
- * @param prefix  - Collection prefix: 'documentos' | 'air' | 'ocean' | 'ground'
- * @param usuarioId - Owner username
- * @param parentId  - quoteId or shipmentId
- * @param docId     - MongoDB ObjectId as string (generated before insert)
- * @param nombreArchivo - Original file name
  */
 export function buildDocR2Key(
   prefix: string,
@@ -35,8 +44,18 @@ export function buildDocR2Key(
   return `${encodeURIComponent(prefix)}/${encodeURIComponent(usuarioId)}/${encodeURIComponent(parentId)}/${docId}_${encodeURIComponent(nombreArchivo)}`;
 }
 
+/** Public URL helper (downloads normalmente van por proxy API). */
+export function getPublicDocumentUrl(key: string): string | null {
+  if (!R2_PUBLIC_DOCUMENTS) return null;
+  return `${R2_PUBLIC_DOCUMENTS.replace(/\/$/, '')}/${key}`;
+}
+
+export function getDocumentsBucketName(): string {
+  return R2_BUCKET_DOCUMENTS;
+}
+
 /**
- * Upload a document (as Buffer) to R2.
+ * Upload a document (as Buffer) to R2 México.
  */
 export async function uploadDocument(
   key: string,
@@ -57,8 +76,6 @@ export async function uploadDocument(
 
 /**
  * Download a document from R2 and return it as a Buffer.
- * Used server-side to proxy downloads to the frontend,
- * avoiding browser CORS restrictions.
  */
 export async function downloadDocumentBuffer(key: string): Promise<Buffer> {
   const res = await s3Client.send(
@@ -71,7 +88,6 @@ export async function downloadDocumentBuffer(key: string): Promise<Buffer> {
   const body = res.Body;
   if (!body) throw new Error('R2 response body is empty');
 
-  // Node Readable stream
   if (body instanceof Readable) {
     const chunks: Buffer[] = [];
     for await (const chunk of body) {
@@ -80,7 +96,6 @@ export async function downloadDocumentBuffer(key: string): Promise<Buffer> {
     return Buffer.concat(chunks);
   }
 
-  // Web Streams API (Node 18+)
   const reader = (body as any).getReader();
   const chunks: Uint8Array[] = [];
   while (true) {

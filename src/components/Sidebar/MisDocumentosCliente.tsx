@@ -102,9 +102,9 @@ function MisDocumentosCliente() {
                 maxWidth: 460,
               }}
             >
-              Consulta y gestiona todos tus documentos relacionados con tus
-              envíos. Aquí encontrarás facturas, guías aéreas, manifiestos y
-              más, todo en un solo lugar para tu comodidad.
+              Sube y consulta tus documentos (facturas, packing lists, órdenes
+              de compra y más) asociados a tus cotizaciones, todo en un solo
+              lugar.
             </p>
           </div>
         </div>
