@@ -291,6 +291,16 @@
         "badge": "🚚 Terrestre",
         "comparisonDescription": "Servicio de transporte terrestre para mover tu carga desde el puerto hasta su destino final dentro del país."
       },
+      "terrestre": {
+        "title": "Transporte Terrestre",
+        "description": "Cotiza paquetería y consolidado con tarifas Envia (México, Centroamérica y EE.UU.)",
+        "description1": "Paquetería y consolidado (LTL)",
+        "description2": "Comparación multi-carrier en tiempo real",
+        "description3": "PDF y seguimiento en Mis Cotizaciones",
+        "button": "Seleccionar Transporte Terrestre →",
+        "badge": "📦 Envia",
+        "comparisonDescription": "Cotizaciones puerta a puerta vía Envia.com con markup Seemann, distintas de Última Milla."
+      },
       "volver": "Volver a selección",
       "comparison": {
         "title": "¿Necesitas ayuda para elegir?"

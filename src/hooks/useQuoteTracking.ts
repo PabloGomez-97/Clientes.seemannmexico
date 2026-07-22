@@ -8,7 +8,7 @@ import {
 import { useAuth } from "../auth/AuthContext";
 
 // ── Event Types ──
-export type QuoteType = "AIR" | "FCL" | "LCL" | "LASTMILE";
+export type QuoteType = "AIR" | "FCL" | "LCL" | "LASTMILE" | "TERRESTRE";
 
 export type QuoteTrackingEvent =
   | "QUOTE_STARTED"

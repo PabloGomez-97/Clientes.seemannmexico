@@ -5,6 +5,7 @@ import CotizadorAereo from "../quotes/QuoteAIR";
 import CotizadorFCL from "../quotes/QuoteFCL";
 import CotizadorLCL from "../quotes/QuoteLCL";
 import CotizadorLastMile from "../quotes/QuoteLASTMILE";
+import CotizadorTerrestre from "../quotes/QuoteTERRESTRE";
 import ActivityBar from "./ActivityBar";
 import {
   AirCotizadorSidebarProvider,
@@ -35,10 +36,10 @@ function CotizadorFormLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-type TipoCotizacion = "AEREO" | "FCL" | "LCL" | "LASTMILE" | null;
+type TipoCotizacion = "AEREO" | "FCL" | "LCL" | "LASTMILE" | "TERRESTRE" | null;
 
 interface ItineraryState {
-  tipoEnvio: "AEREO" | "FCL" | "LCL" | "LASTMILE";
+  tipoEnvio: "AEREO" | "FCL" | "LCL" | "LASTMILE" | "TERRESTRE";
   origin: { value: string; label: string };
   destination: { value: string; label: string };
   fecha?: string;
@@ -49,6 +50,7 @@ const serviceTypes = [
   { key: "FCL" as const, icon: "fa fa-ship" },
   { key: "LCL" as const, icon: "fa fa-cubes" },
   { key: "LASTMILE" as const, icon: "fa fa-truck" },
+  { key: "TERRESTRE" as const, icon: "fa fa-road" },
 ] as const;
 
 const Cotizador: React.FC = () => {
@@ -71,11 +73,11 @@ const Cotizador: React.FC = () => {
     }
   }, [location.state, navigate, location.pathname]);
 
-  // Auto-seleccionar tipo desde query param (?tipo=AEREO|FCL|LCL|LASTMILE)
+  // Auto-seleccionar tipo desde query param (?tipo=AEREO|FCL|LCL|LASTMILE|TERRESTRE)
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const tipo = params.get("tipo")?.toUpperCase();
-    const valid = ["AEREO", "FCL", "LCL", "LASTMILE"] as const;
+    const valid = ["AEREO", "FCL", "LCL", "LASTMILE", "TERRESTRE"] as const;
     if (valid.includes(tipo as (typeof valid)[number])) {
       setTipoCotizacion(tipo as Exclude<TipoCotizacion, null>);
       navigate(location.pathname, { replace: true });
@@ -201,6 +203,12 @@ const Cotizador: React.FC = () => {
                 abandonRef={quoteAbandonRef}
                 preselectedOrigin={preselectedData?.origin}
                 preselectedDestination={preselectedData?.destination}
+              />
+            )}
+            {tipoCotizacion === "TERRESTRE" && (
+              <CotizadorTerrestre
+                key="terrestre"
+                abandonRef={quoteAbandonRef}
               />
             )}
           </CotizadorFormLayout>

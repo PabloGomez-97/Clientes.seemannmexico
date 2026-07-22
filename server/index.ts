@@ -30,6 +30,18 @@ import {
   getMexicoQuotePdfBuffer,
 } from '../api/services/r2QuotesMexicoStorage.ts';
 import {
+  enviaGetStates,
+  enviaGetZipcode,
+  enviaGetCarriers,
+  enviaQuoteAllCarriers,
+  validatePackageLimits,
+  isCaseByCaseOrigin,
+  isEnviaOriginSupported,
+  type EnviaAddressInput,
+  type EnviaPackageInput,
+  type EnviaShipmentType,
+} from '../api/services/enviaClient.ts';
+import {
   buildQuotePdfResendEmailHTML,
   getQuotePdfResendEmailSubject,
 } from '../api/emails/quotePdfResendEmailTemplate.ts';
@@ -4079,7 +4091,10 @@ app.post('/api/quotes/save', auth, async (req, res) => {
     const financial =
       quoteJson?.financial && typeof quoteJson.financial === 'object'
         ? {
-            currency: 'USD' as const,
+            currency: (typeof quoteJson.financial.currency === 'string' &&
+              quoteJson.financial.currency.trim()
+              ? String(quoteJson.financial.currency).trim().toUpperCase()
+              : 'USD') as string,
             amount:
               typeof quoteJson.financial.amount === 'number'
                 ? quoteJson.financial.amount
@@ -4089,7 +4104,7 @@ app.post('/api/quotes/save', auth, async (req, res) => {
                 ? quoteJson.financial.display
                 : undefined,
           }
-        : { currency: 'USD' as const };
+        : { currency: 'USD' };
 
     const { key: jsonKey, bytes: jsonBytes } = await putMexicoQuoteJson(
       ownerUsername,
@@ -4140,6 +4155,139 @@ app.post('/api/quotes/save', auth, async (req, res) => {
     });
   } catch (error: any) {
     console.error('[quotes/save] Error:', error);
+    return res.status(500).json({ error: error?.message || 'Error interno' });
+  }
+});
+
+// ── Envia: Transporte Terrestre ──────────────────────────────
+app.get('/api/envia/states', auth, async (req, res) => {
+  try {
+    const country = String(req.query.country || '').trim().toUpperCase();
+    if (!country || country.length !== 2) {
+      return res.status(400).json({ error: 'country requerido (ISO-2)' });
+    }
+    const result = await enviaGetStates(country);
+    if (!result.ok) {
+      return res.status(result.status || 502).json({
+        error: 'Error al consultar estados Envia',
+        detail: result.text,
+      });
+    }
+    return res.json({ success: true, data: result.json?.data ?? result.json });
+  } catch (error: any) {
+    console.error('[envia/states]', error);
+    return res.status(500).json({ error: error?.message || 'Error interno' });
+  }
+});
+
+app.get('/api/envia/zipcode/:country/:zip', auth, async (req, res) => {
+  try {
+    const country = String(req.params.country || '').trim().toUpperCase();
+    const zip = String(req.params.zip || '').trim();
+    if (!country || !zip) {
+      return res.status(400).json({ error: 'country y zip requeridos' });
+    }
+    const result = await enviaGetZipcode(country, zip);
+    if (!result.ok) {
+      return res.status(result.status || 502).json({
+        error: 'CP no encontrado o error Geocodes',
+        detail: result.text,
+      });
+    }
+    return res.json({ success: true, data: result.json });
+  } catch (error: any) {
+    console.error('[envia/zipcode]', error);
+    return res.status(500).json({ error: error?.message || 'Error interno' });
+  }
+});
+
+app.get('/api/envia/carriers', auth, async (req, res) => {
+  try {
+    const country = String(req.query.country || '').trim().toUpperCase();
+    const international = Number(req.query.international ?? 0) === 1 ? 1 : 0;
+    const type = Number(req.query.type ?? 1) === 2 ? 2 : 1;
+    if (!country) {
+      return res.status(400).json({ error: 'country requerido' });
+    }
+    if (!isEnviaOriginSupported(country)) {
+      return res.json({
+        success: true,
+        data: [],
+        caseByCase: true,
+        message: 'Origen requiere cotización caso a caso',
+      });
+    }
+    const result = await enviaGetCarriers({
+      country,
+      international: international as 0 | 1,
+      shipmentTypeId: type as EnviaShipmentType,
+    });
+    if (!result.ok) {
+      return res.status(result.status || 502).json({
+        error: 'Error al consultar carriers Envia',
+        detail: result.text,
+      });
+    }
+    const data = result.json?.data ?? result.json ?? [];
+    return res.json({ success: true, data: Array.isArray(data) ? data : [] });
+  } catch (error: any) {
+    console.error('[envia/carriers]', error);
+    return res.status(500).json({ error: error?.message || 'Error interno' });
+  }
+});
+
+app.post('/api/envia/rates', auth, async (req, res) => {
+  try {
+    const body = (req.body as any) || {};
+    const origin = body.origin as EnviaAddressInput;
+    const destination = body.destination as EnviaAddressInput;
+    const packages = (body.packages || []) as EnviaPackageInput[];
+    const shipmentType = (Number(body.shipmentType) === 2 ? 2 : 1) as EnviaShipmentType;
+    const currency = body.currency ? String(body.currency) : undefined;
+
+    if (!origin?.country || !destination?.country) {
+      return res.status(400).json({ error: 'origin y destination requeridos' });
+    }
+    if (!packages.length) {
+      return res.status(400).json({ error: 'packages requerido' });
+    }
+
+    if (isCaseByCaseOrigin(origin.country) || !isEnviaOriginSupported(origin.country)) {
+      return res.json({
+        success: true,
+        caseByCase: true,
+        rates: [],
+        message: 'Origen requiere cotización caso a caso con el ejecutivo',
+      });
+    }
+
+    const limitErr = validatePackageLimits(shipmentType, packages);
+    if (limitErr) {
+      return res.status(400).json({ error: limitErr });
+    }
+
+    const quoted = await enviaQuoteAllCarriers({
+      origin,
+      destination,
+      packages,
+      shipmentType,
+      currency,
+      carriers: Array.isArray(body.carriers) ? body.carriers : undefined,
+    });
+
+    return res.json({
+      success: true,
+      caseByCase: false,
+      rates: quoted.rates,
+      carriersQueried: quoted.carriersQueried,
+      errors: quoted.errors,
+      markupPercent: 15,
+    });
+  } catch (error: any) {
+    if (String(error?.message || '').includes('ENVIA_API_KEY')) {
+      return res.status(503).json({ error: 'Envia no configurado (falta ENVIA_API_KEY)' });
+    }
+    console.error('[envia/rates]', error);
     return res.status(500).json({ error: error?.message || 'Error interno' });
   }
 });
@@ -5937,10 +6085,11 @@ app.post('/api/send-no-rate-quote-email', auth, async (req, res) => {
     const ejecutivoNombre = (currentUser.ejecutivoId as any).nombre || 'Ejecutivo';
     const clienteUsername = currentUser.username || currentUser.email;
 
-    const { quoteType, cargoDetails } = req.body as {
-      quoteType: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE';
+    const { quoteType, cargoDetails, caseByCase } = req.body as {
+      quoteType: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE' | 'TERRESTRE';
       cargoDetails: Record<string, unknown>;
       quoteNumber?: string;
+      caseByCase?: boolean;
     };
     const noRateQuoteNumber: string | undefined = req.body.quoteNumber;
 
@@ -5950,6 +6099,7 @@ app.post('/api/send-no-rate-quote-email', auth, async (req, res) => {
       quoteType,
       cargoDetails,
       quoteNumber: noRateQuoteNumber || undefined,
+      caseByCase: Boolean(caseByCase),
     };
 
     const subject = getNoRateQuoteEmailSubject(emailData);

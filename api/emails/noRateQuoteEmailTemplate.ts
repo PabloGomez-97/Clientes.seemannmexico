@@ -6,9 +6,11 @@
 export interface NoRateQuoteEmailData {
   ejecutivoNombre: string;
   clienteUsername: string;
-  quoteType: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE';
+  quoteType: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE' | 'TERRESTRE';
   cargoDetails: Record<string, unknown>;
   quoteNumber?: string;
+  /** Si true, el asunto/cuerpo indican cotización caso a caso (p. ej. origen CA). */
+  caseByCase?: boolean;
 }
 
 const LOGO_URL = 'https://portalclientes.seemanngroup.com/logocompleto.png';
@@ -28,6 +30,7 @@ function getServiceLabel(quoteType: string): string {
   if (quoteType === 'AIR') return 'Aéreo (AIR)';
   if (quoteType === 'FCL') return 'Marítimo FCL';
   if (quoteType === 'LASTMILE') return 'Última Milla';
+  if (quoteType === 'TERRESTRE') return 'Transporte Terrestre (Envia)';
   return 'Marítimo LCL';
 }
 
@@ -35,6 +38,7 @@ function getServiceColor(quoteType: string): string {
   if (quoteType === 'AIR') return '#3b82f6';
   if (quoteType === 'FCL') return '#8b5cf6';
   if (quoteType === 'LASTMILE') return '#0d9488';
+  if (quoteType === 'TERRESTRE') return '#ea580c';
   return '#06b6d4';
 }
 
@@ -116,7 +120,30 @@ function buildLastMileDetailRows(d: any, row: (l: string, v: string) => string):
   return rows.join('');
 }
 
+function buildTerrestreDetailRows(d: any, row: (l: string, v: string) => string): string {
+  const rows = [
+    row('Tipo servicio', d.shipmentTypeLabel || d.shipmentType || '—'),
+    row('País origen', d.originCountry),
+    row('País destino', d.destinationCountry),
+    row('Origen', d.originAddress || d.origen),
+    row('Destino', d.destinationAddress || d.destino),
+    row('Motivo', d.reason || 'Sin tarifa / caso a caso'),
+  ];
+  if (d.piezasDesc) rows.push(row('Piezas / carga', d.piezasDesc));
+  if (d.pesoTotal) rows.push(row('Peso total (kg)', d.pesoTotal));
+  if (d.content) rows.push(row('Contenido', d.content));
+  if (d.hsCode) rows.push(row('HS Code', d.hsCode));
+  if (d.declaredValue) rows.push(row('Valor declarado', String(d.declaredValue)));
+  return rows.join('');
+}
+
 export function getNoRateQuoteEmailSubject(data: NoRateQuoteEmailData): string {
+  if (data.caseByCase || data.quoteType === 'TERRESTRE') {
+    const prefix = data.caseByCase
+      ? 'Cotización caso a caso'
+      : 'Cotización sin tarifa';
+    return `${prefix} — ${data.clienteUsername} (${data.quoteType})`;
+  }
   return `Cotización sin tarifa — ${data.clienteUsername} (${data.quoteType})`;
 }
 
@@ -187,7 +214,9 @@ export function buildNoRateQuoteEmailHTML(data: NoRateQuoteEmailData): string {
               </p>
 
               <p style="margin:0 0 20px;font-size:14px;color:${C.text};line-height:1.6;">
-                Tu cliente <strong style="color:${C.primary};">${data.clienteUsername}</strong> ha generado una cotización en una ruta sin tarifa configurada y requiere tarificación manual.
+                ${data.caseByCase
+                  ? `Tu cliente <strong style="color:${C.primary};">${data.clienteUsername}</strong> solicitó una <strong>cotización caso a caso</strong> de Transporte Terrestre (ruta no cubierta automáticamente por Envia).`
+                  : `Tu cliente <strong style="color:${C.primary};">${data.clienteUsername}</strong> ha generado una cotización en una ruta sin tarifa configurada y requiere tarificación manual.`}
               </p>
 
               <!-- Service type badge -->
@@ -207,6 +236,10 @@ export function buildNoRateQuoteEmailHTML(data: NoRateQuoteEmailData): string {
                   <td class="detail-value" style="padding:8px 12px;font-size:13px;font-weight:600;color:${C.primary};border-bottom:1px solid ${C.border};">${data.quoteNumber}</td>
                 </tr>` : ''}
                 ${data.quoteType === 'LASTMILE' ? buildLastMileDetailRows(data.cargoDetails, (l, v) => `
+                <tr>
+                  <td class="detail-label" style="padding:8px 12px;font-size:13px;color:${C.muted};white-space:nowrap;width:180px;border-bottom:1px solid ${C.border};">${l}</td>
+                  <td class="detail-value" style="padding:8px 12px;font-size:13px;font-weight:600;color:${C.text};border-bottom:1px solid ${C.border};">${v || '—'}</td>
+                </tr>`) : data.quoteType === 'TERRESTRE' ? buildTerrestreDetailRows(data.cargoDetails, (l, v) => `
                 <tr>
                   <td class="detail-label" style="padding:8px 12px;font-size:13px;color:${C.muted};white-space:nowrap;width:180px;border-bottom:1px solid ${C.border};">${l}</td>
                   <td class="detail-value" style="padding:8px 12px;font-size:13px;font-weight:600;color:${C.text};border-bottom:1px solid ${C.border};">${v || '—'}</td>

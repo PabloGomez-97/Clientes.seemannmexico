@@ -28,6 +28,18 @@ import {
   getMexicoQuotePdfBuffer,
 } from './services/r2QuotesMexicoStorage.js';
 import {
+  enviaGetStates,
+  enviaGetZipcode,
+  enviaGetCarriers,
+  enviaQuoteAllCarriers,
+  validatePackageLimits,
+  isCaseByCaseOrigin,
+  isEnviaOriginSupported,
+  type EnviaAddressInput,
+  type EnviaPackageInput,
+  type EnviaShipmentType,
+} from './services/enviaClient.js';
+import {
   buildQuotePdfResendEmailHTML,
   getQuotePdfResendEmailSubject,
 } from './emails/quotePdfResendEmailTemplate.js';
@@ -1036,7 +1048,7 @@ interface IQuotePDF {
   tamanoBytes: number;
   contenidoBase64?: string;          // Legacy – ya no se usa para nuevos PDFs
   r2Key?: string;                    // Clave del objeto en Cloudflare R2
-  tipoServicio: 'AIR' | 'FCL' | 'LCL' | 'INTERNACIONALIZACION' | 'LASTMILE';
+  tipoServicio: 'AIR' | 'FCL' | 'LCL' | 'INTERNACIONALIZACION' | 'LASTMILE' | 'TERRESTRE';
   origen: string;
   destino: string;
   usuarioId: string;
@@ -1057,7 +1069,7 @@ const QuotePDFSchema = new mongoose.Schema<IQuotePDFDoc>(
     tamanoBytes: { type: Number, required: true },
     contenidoBase64: { type: String },   // Legacy – opcional
     r2Key: { type: String },             // Cloudflare R2 object key
-    tipoServicio: { type: String, required: true, enum: ['AIR', 'FCL', 'LCL', 'INTERNACIONALIZACION', 'LASTMILE'] },
+    tipoServicio: { type: String, required: true, enum: ['AIR', 'FCL', 'LCL', 'INTERNACIONALIZACION', 'LASTMILE', 'TERRESTRE'] },
     origen: { type: String, default: '' },
     destino: { type: String, default: '' },
     usuarioId: { type: String, required: true, index: true },
@@ -1114,7 +1126,7 @@ interface IQuoteIndex {
   transitDays?: number;
   customerReference?: string;
   financial?: {
-    currency: 'USD';
+    currency: string;
     amount?: number;
     display?: string;
   };
@@ -1252,7 +1264,7 @@ interface IQuoteTrackingEvent {
   clientUsername: string;
   sessionId: string;
   event: 'QUOTE_STARTED' | 'QUOTE_STEP_CHANGED' | 'QUOTE_ROUTE_SELECTED' | 'QUOTE_COMPLETED' | 'QUOTE_ABANDONED';
-  quoteType: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE';
+  quoteType: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE' | 'TERRESTRE';
   step?: { step: string; stepNumber: number; totalSteps: number };
   route?: { origin: string; destination: string };
   incoterm?: string;
@@ -1277,7 +1289,7 @@ const QuoteTrackingEventSchema = new mongoose.Schema<IQuoteTrackingEventDoc>(
       required: true,
       enum: ['QUOTE_STARTED', 'QUOTE_STEP_CHANGED', 'QUOTE_ROUTE_SELECTED', 'QUOTE_COMPLETED', 'QUOTE_ABANDONED'],
     },
-    quoteType: { type: String, required: true, enum: ['AIR', 'FCL', 'LCL', 'LASTMILE'] },
+    quoteType: { type: String, required: true, enum: ['AIR', 'FCL', 'LCL', 'LASTMILE', 'TERRESTRE'] },
     step: {
       step: String,
       stepNumber: Number,
@@ -1327,7 +1339,7 @@ interface IPortalNotification {
   dedupKey: string;          // unique per (recipient, dedupKey) — prevents duplicates
   // Quote-related
   sessionId?: string;
-  quoteType?: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE';
+  quoteType?: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE' | 'TERRESTRE';
   quoteNumber?: string;
   route?: { origin?: string; destination?: string };
   // Tracking-related
@@ -1372,7 +1384,7 @@ const PortalNotificationSchema = new mongoose.Schema<IPortalNotificationDoc>(
     },
     dedupKey: { type: String, required: true },
     sessionId: { type: String },
-    quoteType: { type: String, enum: ['AIR', 'FCL', 'LCL', 'LASTMILE'] },
+    quoteType: { type: String, enum: ['AIR', 'FCL', 'LCL', 'LASTMILE', 'TERRESTRE'] },
     quoteNumber: { type: String, trim: true },
     route: {
       origin: { type: String, trim: true },
@@ -1451,7 +1463,7 @@ async function emitQuoteEventNotification(opts: {
   clientUsername: string;
   sessionId: string;
   event: 'QUOTE_COMPLETED' | 'QUOTE_ABANDONED';
-  quoteType: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE';
+  quoteType: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE' | 'TERRESTRE';
   route?: { origin?: string; destination?: string };
   metadata?: Record<string, unknown> | null;
 }): Promise<void> {
@@ -2094,7 +2106,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const financial =
         quoteJson?.financial && typeof quoteJson.financial === 'object'
           ? {
-              currency: 'USD' as const,
+              currency: (typeof quoteJson.financial.currency === 'string' &&
+                quoteJson.financial.currency.trim()
+                ? String(quoteJson.financial.currency).trim().toUpperCase()
+                : 'USD') as string,
               amount:
                 typeof quoteJson.financial.amount === 'number'
                   ? quoteJson.financial.amount
@@ -2104,7 +2119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                   ? quoteJson.financial.display
                   : undefined,
             }
-          : { currency: 'USD' as const };
+          : { currency: 'USD' };
 
       // Guardar en R2 (JSON + PDF)
       const { key: jsonKey, bytes: jsonBytes } = await putMexicoQuoteJson(
@@ -2153,6 +2168,160 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         pdfKey,
         bytes: { json: jsonBytes, pdf: pdfBytes },
       });
+    }
+
+    // ── Envia: Transporte Terrestre ──────────────────────────────
+    // GET /api/envia/states?country=MX
+    if (path === '/api/envia/states' && method === 'GET') {
+      try {
+        requireAuth(req);
+        const country = String(req.query.country || '').trim().toUpperCase();
+        if (!country || country.length !== 2) {
+          return res.status(400).json({ error: 'country requerido (ISO-2)' });
+        }
+        const result = await enviaGetStates(country);
+        if (!result.ok) {
+          return res.status(result.status || 502).json({
+            error: 'Error al consultar estados Envia',
+            detail: result.text,
+          });
+        }
+        return res.json({ success: true, data: result.json?.data ?? result.json });
+      } catch (error: any) {
+        if (error?.message === 'No auth token' || error?.message === 'Invalid token') {
+          return res.status(401).json({ error: error.message });
+        }
+        console.error('[envia/states]', error);
+        return res.status(500).json({ error: error?.message || 'Error interno' });
+      }
+    }
+
+    // GET /api/envia/zipcode/:country/:zip
+    if (path?.startsWith('/api/envia/zipcode/') && method === 'GET') {
+      try {
+        requireAuth(req);
+        const parts = path.split('/api/envia/zipcode/')[1]?.split('/').filter(Boolean) || [];
+        const country = String(parts[0] || '').trim().toUpperCase();
+        const zip = String(parts[1] || '').trim();
+        if (!country || !zip) {
+          return res.status(400).json({ error: 'country y zip requeridos' });
+        }
+        const result = await enviaGetZipcode(country, zip);
+        if (!result.ok) {
+          return res.status(result.status || 502).json({
+            error: 'CP no encontrado o error Geocodes',
+            detail: result.text,
+          });
+        }
+        return res.json({ success: true, data: result.json });
+      } catch (error: any) {
+        if (error?.message === 'No auth token' || error?.message === 'Invalid token') {
+          return res.status(401).json({ error: error.message });
+        }
+        console.error('[envia/zipcode]', error);
+        return res.status(500).json({ error: error?.message || 'Error interno' });
+      }
+    }
+
+    // GET /api/envia/carriers?country=MX&international=0&type=1
+    if (path === '/api/envia/carriers' && method === 'GET') {
+      try {
+        requireAuth(req);
+        const country = String(req.query.country || '').trim().toUpperCase();
+        const international = Number(req.query.international ?? 0) === 1 ? 1 : 0;
+        const type = Number(req.query.type ?? 1) === 2 ? 2 : 1;
+        if (!country) {
+          return res.status(400).json({ error: 'country requerido' });
+        }
+        if (!isEnviaOriginSupported(country)) {
+          return res.json({
+            success: true,
+            data: [],
+            caseByCase: true,
+            message: 'Origen requiere cotización caso a caso',
+          });
+        }
+        const result = await enviaGetCarriers({
+          country,
+          international: international as 0 | 1,
+          shipmentTypeId: type as EnviaShipmentType,
+        });
+        if (!result.ok) {
+          return res.status(result.status || 502).json({
+            error: 'Error al consultar carriers Envia',
+            detail: result.text,
+          });
+        }
+        const data = result.json?.data ?? result.json ?? [];
+        return res.json({ success: true, data: Array.isArray(data) ? data : [] });
+      } catch (error: any) {
+        if (error?.message === 'No auth token' || error?.message === 'Invalid token') {
+          return res.status(401).json({ error: error.message });
+        }
+        console.error('[envia/carriers]', error);
+        return res.status(500).json({ error: error?.message || 'Error interno' });
+      }
+    }
+
+    // POST /api/envia/rates
+    if (path === '/api/envia/rates' && method === 'POST') {
+      try {
+        requireAuth(req);
+        const body = (req.body as any) || {};
+        const origin = body.origin as EnviaAddressInput;
+        const destination = body.destination as EnviaAddressInput;
+        const packages = (body.packages || []) as EnviaPackageInput[];
+        const shipmentType = (Number(body.shipmentType) === 2 ? 2 : 1) as EnviaShipmentType;
+        const currency = body.currency ? String(body.currency) : undefined;
+
+        if (!origin?.country || !destination?.country) {
+          return res.status(400).json({ error: 'origin y destination requeridos' });
+        }
+        if (!packages.length) {
+          return res.status(400).json({ error: 'packages requerido' });
+        }
+
+        if (isCaseByCaseOrigin(origin.country) || !isEnviaOriginSupported(origin.country)) {
+          return res.json({
+            success: true,
+            caseByCase: true,
+            rates: [],
+            message: 'Origen requiere cotización caso a caso con el ejecutivo',
+          });
+        }
+
+        const limitErr = validatePackageLimits(shipmentType, packages);
+        if (limitErr) {
+          return res.status(400).json({ error: limitErr });
+        }
+
+        const quoted = await enviaQuoteAllCarriers({
+          origin,
+          destination,
+          packages,
+          shipmentType,
+          currency,
+          carriers: Array.isArray(body.carriers) ? body.carriers : undefined,
+        });
+
+        return res.json({
+          success: true,
+          caseByCase: false,
+          rates: quoted.rates,
+          carriersQueried: quoted.carriersQueried,
+          errors: quoted.errors,
+          markupPercent: 15,
+        });
+      } catch (error: any) {
+        if (error?.message === 'No auth token' || error?.message === 'Invalid token') {
+          return res.status(401).json({ error: error.message });
+        }
+        if (String(error?.message || '').includes('ENVIA_API_KEY')) {
+          return res.status(503).json({ error: 'Envia no configurado (falta ENVIA_API_KEY)' });
+        }
+        console.error('[envia/rates]', error);
+        return res.status(500).json({ error: error?.message || 'Error interno' });
+      }
     }
 
     // GET /api/quotes/list
@@ -6215,10 +6384,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ejecutivoNombre = (currentUser.ejecutivoId as any).nombre || 'Ejecutivo';
         const clienteUsername = currentUser.username || currentUser.email;
 
-        const { quoteType, cargoDetails, quoteNumber: noRateQuoteNumber } = req.body as {
-          quoteType: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE';
+        const { quoteType, cargoDetails, quoteNumber: noRateQuoteNumber, caseByCase } = req.body as {
+          quoteType: 'AIR' | 'FCL' | 'LCL' | 'LASTMILE' | 'TERRESTRE';
           cargoDetails: Record<string, unknown>;
           quoteNumber?: string;
+          caseByCase?: boolean;
         };
 
         const emailData: NoRateQuoteEmailData = {
@@ -6227,6 +6397,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           quoteType,
           cargoDetails,
           quoteNumber: noRateQuoteNumber || undefined,
+          caseByCase: Boolean(caseByCase),
         };
 
         const subject = getNoRateQuoteEmailSubject(emailData);
@@ -6287,8 +6458,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           });
         }
 
-        if (!['AIR', 'FCL', 'LCL', 'INTERNACIONALIZACION', 'LASTMILE'].includes(tipoServicio)) {
-          return res.status(400).json({ error: 'tipoServicio debe ser AIR, FCL, LCL, INTERNACIONALIZACION o LASTMILE' });
+        if (!['AIR', 'FCL', 'LCL', 'INTERNACIONALIZACION', 'LASTMILE', 'TERRESTRE'].includes(tipoServicio)) {
+          return res.status(400).json({ error: 'tipoServicio debe ser AIR, FCL, LCL, INTERNACIONALIZACION, LASTMILE o TERRESTRE' });
         }
 
         // Extraer contenido base64 puro y convertir a Buffer

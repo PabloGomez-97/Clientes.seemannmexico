@@ -292,6 +292,16 @@
         "badge": "🚚 Ground",
         "comparisonDescription": "Ground transportation service to move your cargo from the port to its final destination within the country."
       },
+      "terrestre": {
+        "title": "Ground Transport",
+        "description": "Quote parcel and LTL rates via Envia (Mexico, Central America and USA)",
+        "description1": "Parcel and consolidated (LTL)",
+        "description2": "Real-time multi-carrier comparison",
+        "description3": "PDF saved in My Quotes",
+        "button": "Select Ground Transport →",
+        "badge": "📦 Envia",
+        "comparisonDescription": "Door-to-door quotes via Envia.com with Seemann markup, separate from Last Mile."
+      },
       "volver": "Back to selection",
       "comparison": {
         "title": "Need help choosing?"

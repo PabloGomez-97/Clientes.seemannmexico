@@ -3,14 +3,15 @@ import CotizadorAereo from "./QuoteAIR-ejecutivo";
 import CotizadorFCL from "./QuoteFCL-ejecutivo";
 import CotizadorLCL from "./QuoteLCL-ejecutivo";
 import CotizadorLastMile from "./QuoteLASTMILE-ejecutivo";
+import CotizadorTerrestre from "./QuoteTERRESTRE-ejecutivo";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import "../../Sidebar/styles/Cotizador.css";
 
-type TipoCotizacion = "AEREO" | "FCL" | "LCL" | "LASTMILE" | null;
+type TipoCotizacion = "AEREO" | "FCL" | "LCL" | "LASTMILE" | "TERRESTRE" | null;
 
 interface ItineraryState {
-  tipoEnvio: "AEREO" | "FCL" | "LCL" | "LASTMILE";
+  tipoEnvio: "AEREO" | "FCL" | "LCL" | "LASTMILE" | "TERRESTRE";
   origin?: { value: string; label: string };
   destination?: { value: string; label: string };
   fecha?: string;
@@ -33,6 +34,7 @@ const serviceTypes = [
   { key: "FCL" as const, icon: "fa fa-ship" },
   { key: "LCL" as const, icon: "fa fa-cubes" },
   { key: "LASTMILE" as const, icon: "fa fa-truck" },
+  { key: "TERRESTRE" as const, icon: "fa fa-road" },
 ] as const;
 
 const Cotizadoradministrador: React.FC = () => {
@@ -181,6 +183,9 @@ const Cotizadoradministrador: React.FC = () => {
               preselectedOrigin={preselectedData?.origin}
               preselectedDestination={preselectedData?.destination}
             />
+          )}
+          {tipoCotizacion === "TERRESTRE" && (
+            <CotizadorTerrestre key="terrestre" />
           )}
         </div>
       </div>
