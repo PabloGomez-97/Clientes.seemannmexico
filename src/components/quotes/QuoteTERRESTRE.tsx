@@ -1310,7 +1310,7 @@ const QuoteTERRESTRE: React.FC<QuoteTERRESTREProps> = ({
             </li>
           </ul>
 
-          {generating && <QuoteGeneratingMessage />}
+          {generating && <QuoteGeneratingMessage btnPhase="loading" />}
 
           <div className="mt-3 d-flex justify-content-between">
             <Button
