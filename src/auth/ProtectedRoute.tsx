@@ -1,4 +1,3 @@
-// src/components/ProtectedRoute.tsx
 import { Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuth } from "./AuthContext";
@@ -10,9 +9,17 @@ interface ProtectedRouteProps {
   requireProveedor?: boolean;
 }
 
+function clearAuthStorage() {
+  localStorage.removeItem("auth_token");
+  localStorage.removeItem("auth_tenant");
+  localStorage.removeItem("active_username");
+}
+
 function RedirectToLogin() {
   useEffect(() => {
-    window.location.assign(getCentralLoginHref("client"));
+    // Limpiar antes de ir al login Chile para no reactivar el handoff mx.
+    clearAuthStorage();
+    window.location.replace(getCentralLoginHref("client"));
   }, []);
   return null;
 }
@@ -24,7 +31,6 @@ export default function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { user, token, loading } = useAuth();
 
-  // Wait while verifying session on page refresh
   if (loading) {
     return (
       <div
@@ -42,6 +48,7 @@ export default function ProtectedRoute({
     );
   }
 
+  // Token sin user tras fallar /me: ir a login limpio (sin residual mx).
   if (!token || !user) {
     return <RedirectToLogin />;
   }

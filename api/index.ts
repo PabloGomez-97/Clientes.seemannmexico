@@ -2553,7 +2553,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.json({
         token,
         tenant: 'mx',
-        redirectTo: '/mx/',
+        redirectTo: '/mx',
         user: { 
           email: user.email, 
           username: user.username,

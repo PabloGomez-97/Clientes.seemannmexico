@@ -14,7 +14,7 @@ export const TENANT_META: Record<
   { id: TenantId; label: string; redirectTo: string }
 > = {
   cl: { id: 'cl', label: 'Seemann Chile', redirectTo: '/' },
-  mx: { id: 'mx', label: 'Seemann México', redirectTo: '/mx/' },
+  mx: { id: 'mx', label: 'Seemann México', redirectTo: '/mx' },
 };
 
 export interface RemoteUserLean {

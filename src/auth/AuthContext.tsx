@@ -26,13 +26,12 @@ type Roles = {
 type User = {
   email: string;
   username: string;
-  usernames: string[]; // Múltiples empresas/cuentas asignadas
+  usernames: string[];
   nombreuser: string;
   ejecutivo?: Ejecutivo;
   roles?: Roles;
 } | null;
 
-// ✅ NUEVO: Tipo para los clientes
 type Cliente = {
   id: string;
   email: string;
@@ -45,9 +44,9 @@ type Cliente = {
 type AuthCtx = {
   user: User;
   token: string | null;
-  loading: boolean; // true while verifying token on mount
-  activeUsername: string; // Empresa activa seleccionada
-  setActiveUsername: (username: string) => void; // Cambiar empresa activa
+  loading: boolean;
+  activeUsername: string;
+  setActiveUsername: (username: string) => void;
   login: (
     email: string,
     password: string,
@@ -68,22 +67,51 @@ type AuthCtx = {
 
 const AuthContext = createContext<AuthCtx | null>(null);
 
+const AUTH_TOKEN_KEY = "auth_token";
+const AUTH_TENANT_KEY = "auth_tenant";
+const AUTH_USERNAME_KEY = "active_username";
+
+function clearAuthStorage() {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  localStorage.removeItem(AUTH_TENANT_KEY);
+  localStorage.removeItem(AUTH_USERNAME_KEY);
+}
+
+function persistMexicoSession(token: string, username: string) {
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+  localStorage.setItem(AUTH_TENANT_KEY, "mx");
+  localStorage.setItem(AUTH_USERNAME_KEY, username);
+}
+
+function peekJwtTenant(token: string): "cl" | "mx" | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const b64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(padded));
+    if (payload.tenant === "cl" || payload.tenant === "mx") return payload.tenant;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem("auth_token"),
+    localStorage.getItem(AUTH_TOKEN_KEY),
   );
   const [user, setUser] = useState<User>(null);
   const [loading, setLoading] = useState<boolean>(
-    !!localStorage.getItem("auth_token"),
+    !!localStorage.getItem(AUTH_TOKEN_KEY),
   );
   const [activeUsername, setActiveUsernameState] = useState<string>(
-    () => localStorage.getItem("active_username") || "",
+    () => localStorage.getItem(AUTH_USERNAME_KEY) || "",
   );
 
-  // Setter que persiste en localStorage
   const setActiveUsername = useCallback((username: string) => {
     setActiveUsernameState(username);
-    localStorage.setItem("active_username", username);
+    localStorage.setItem(AUTH_USERNAME_KEY, username);
   }, []);
 
   useEffect(() => {
@@ -91,6 +119,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
+
+    // JWT de Chile: no llamar a API MX; ir al portal raíz sin dejar token huérfano.
+    const jwtTenant = peekJwtTenant(token);
+    if (jwtTenant === "cl") {
+      clearAuthStorage();
+      setToken(null);
+      setUser(null);
+      setLoading(false);
+      window.location.replace("/");
+      return;
+    }
+
     setLoading(true);
     fetch(mexicoApiUrl("/api/me"), {
       headers: { Authorization: `Bearer ${token}` },
@@ -98,17 +138,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(async (r) => {
         if (r.status === 409) {
           const d = await r.json().catch(() => ({}));
-          // Sesión de Chile → volver al portal raíz
+          clearAuthStorage();
+          setToken(null);
+          setUser(null);
           if (d.tenant === "cl" || d.redirectTo === "/") {
-            window.location.replace(d.redirectTo || "/");
+            window.location.replace("/");
             return null;
           }
-          // 409 inesperado (API Chile u otro): romper loop /login ↔ /mx
-          setToken(null);
-          localStorage.removeItem("auth_token");
-          localStorage.removeItem("active_username");
-          localStorage.removeItem("auth_tenant");
           window.location.replace(getCentralLoginHref("client"));
+          return null;
+        }
+        if (r.status === 401 || r.status === 403) {
+          // Típico: JWT_SECRET distinto entre Chile y México
+          clearAuthStorage();
+          setToken(null);
+          setUser(null);
+          window.location.replace(
+            `${getCentralLoginHref("admin")}?error=mx_auth`,
+          );
           return null;
         }
         if (!r.ok) return Promise.reject();
@@ -121,6 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ? d.user.usernames
             : [d.user.username];
 
+        persistMexicoSession(token, usernames[0]);
         setUser({
           email: d.user.sub,
           username: d.user.username,
@@ -130,22 +178,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           roles: d.user.roles || null,
         });
 
-        // Establecer activeUsername si no hay uno válido guardado
-        const stored = localStorage.getItem("active_username");
+        const stored = localStorage.getItem(AUTH_USERNAME_KEY);
         if (!stored || !usernames.includes(stored)) {
           setActiveUsername(usernames[0]);
         }
       })
       .catch(() => {
+        clearAuthStorage();
         setToken(null);
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("active_username");
-        localStorage.removeItem("auth_tenant");
+        setUser(null);
       })
       .finally(() => {
         setLoading(false);
       });
-  }, [token]);
+  }, [token, setActiveUsername]);
 
   const login = async (
     email: string,
@@ -170,21 +216,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw err;
     }
     const data = await r.json();
-    setToken(data.token);
-    localStorage.setItem("auth_token", data.token);
-
     const usernames =
       data.user.usernames && data.user.usernames.length > 0
         ? data.user.usernames
         : [data.user.username];
+
+    persistMexicoSession(data.token, usernames[0]);
+    setToken(data.token);
 
     const userData = {
       ...data.user,
       usernames,
     };
     setUser(userData);
-
-    // Establecer la primera empresa como activa
     setActiveUsername(usernames[0]);
 
     return userData;
@@ -194,14 +238,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setToken(null);
     setActiveUsernameState("");
+    clearAuthStorage();
     localStorage.clear();
-    window.location.assign(getCentralLoginHref("client"));
+    window.location.replace(getCentralLoginHref("client"));
   };
 
   const getEjecutivos = async (): Promise<Ejecutivo[]> => {
-    if (!token) {
-      throw new Error("No hay sesión activa");
-    }
+    if (!token) throw new Error("No hay sesión activa");
 
     const r = await fetch(mexicoApiUrl("/api/ejecutivos"), {
       headers: {
@@ -210,19 +253,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
 
-    if (!r.ok) {
-      throw new Error("Error al obtener ejecutivos");
-    }
-
+    if (!r.ok) throw new Error("Error al obtener ejecutivos");
     const data = await r.json();
     return data.ejecutivos || [];
   };
 
-  // ✅ NUEVA FUNCIÓN: Obtener clientes asignados al ejecutivo autenticado
   const getMisClientes = useCallback(async (): Promise<Cliente[]> => {
-    if (!token) {
-      throw new Error("No hay sesión activa");
-    }
+    if (!token) throw new Error("No hay sesión activa");
 
     const r = await fetch(mexicoApiUrl("/api/ejecutivo/clientes"), {
       headers: {
@@ -240,11 +277,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return data.clientes || [];
   }, [token]);
 
-  // Obtener TODOS los clientes del sistema (para rol pricing)
   const getTodosClientes = useCallback(async (): Promise<Cliente[]> => {
-    if (!token) {
-      throw new Error("No hay sesión activa");
-    }
+    if (!token) throw new Error("No hay sesión activa");
 
     const r = await fetch(mexicoApiUrl("/api/admin/users"), {
       headers: {
@@ -259,18 +293,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const data = await r.json();
-    // Filtrar solo clientes (excluir ejecutivos)
     const allUsers = data.users || [];
     return allUsers
-      .filter((u: any) => u.username !== "Ejecutivo")
-      .map((u: any) => ({
-        id: u.id,
-        email: u.email,
-        username: u.username,
-        usernames: u.usernames,
-        nombreuser: u.nombreuser,
-        createdAt: u.createdAt,
-      }));
+      .filter((u: { username: string }) => u.username !== "Ejecutivo")
+      .map(
+        (u: {
+          id: string;
+          email: string;
+          username: string;
+          usernames?: string[];
+          nombreuser: string;
+          createdAt: string;
+        }) => ({
+          id: u.id,
+          email: u.email,
+          username: u.username,
+          usernames: u.usernames,
+          nombreuser: u.nombreuser,
+          createdAt: u.createdAt,
+        }),
+      );
   }, [token]);
 
   return (

@@ -46,6 +46,11 @@ function rewriteApiUrl(raw: string): string | null {
 }
 
 if (apiPrefix) {
+  try {
+    sessionStorage.removeItem("mx_bridge_reload");
+  } catch {
+    /* ignore */
+  }
   const nativeFetch = window.fetch.bind(window);
   window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
     if (typeof input === "string") {
