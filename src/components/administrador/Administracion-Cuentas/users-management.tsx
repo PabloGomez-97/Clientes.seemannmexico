@@ -63,6 +63,9 @@ const LEGAL_SUFFIXES = new Set([
   "cia",
   "chile",
   "chilena",
+  "mexico",
+  "mexicana",
+  "mexicano",
   "y",
   "de",
   "del",
@@ -104,13 +107,13 @@ const generateCompanyEmailPrefix = (
 
   const candidates = [
     truncated,
-    truncated + "chile",
-    truncated + "cl",
+    truncated + "mexico",
+    truncated + "mx",
     ...Array.from({ length: 10 }, (_, i) => truncated + (i + 1)),
   ];
 
   for (const candidate of candidates) {
-    if (!existingEmails.has(candidate + "@seemanngroup.com")) {
+    if (!existingEmails.has(candidate + "@seemanngroup.mx")) {
       return candidate;
     }
   }
@@ -445,7 +448,7 @@ function UsersManagement() {
     }
 
     // Flujo para clientes
-    const clientEmail = emailPrefix.trim() + "@seemanngroup.com";
+    const clientEmail = emailPrefix.trim() + "@seemanngroup.mx";
     if (!emailPrefix.trim()) {
       setError("El prefijo del email es requerido");
       setFormLoading(false);
@@ -1085,7 +1088,7 @@ function UsersManagement() {
                           alignItems: "center",
                         }}
                       >
-                        @seemanngroup.com
+                        @seemanngroup.mx
                       </span>
                     </div>
                   ) : (
@@ -1095,7 +1098,7 @@ function UsersManagement() {
                       onChange={(e) => setEmail(e.target.value)}
                       required={!editingUserId}
                       disabled={!!editingUserId}
-                      placeholder="ejecutivo@seemanngroup.com"
+                      placeholder="ejecutivo@seemanngroup.mx"
                       style={{
                         width: "100%",
                         padding: "9px 12px",
