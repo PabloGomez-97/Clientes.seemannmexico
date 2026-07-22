@@ -6,6 +6,7 @@ import {
   useCallback,
 } from "react";
 import { getCentralLoginHref } from "./portalLogin";
+import { mexicoApiUrl } from "./mexicoApiUrl";
 
 type Ejecutivo = {
   id: string;
@@ -91,14 +92,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setLoading(true);
-    fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } })
+    fetch(mexicoApiUrl("/api/me"), {
+      headers: { Authorization: `Bearer ${token}` },
+    })
       .then(async (r) => {
         if (r.status === 409) {
           const d = await r.json().catch(() => ({}));
-          if (d.redirectTo) {
-            window.location.assign(d.redirectTo);
+          // Sesión de Chile → volver al portal raíz
+          if (d.tenant === "cl" || d.redirectTo === "/") {
+            window.location.replace(d.redirectTo || "/");
             return null;
           }
+          // 409 inesperado (API Chile u otro): romper loop /login ↔ /mx
+          setToken(null);
+          localStorage.removeItem("auth_token");
+          localStorage.removeItem("active_username");
+          localStorage.removeItem("auth_tenant");
+          window.location.replace(getCentralLoginHref("client"));
+          return null;
         }
         if (!r.ok) return Promise.reject();
         return r.json();
@@ -143,7 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ) => {
     const body: Record<string, unknown> = { email, password };
     if (turnstileToken) body.turnstileToken = turnstileToken;
-    const r = await fetch("/api/login", {
+    const r = await fetch(mexicoApiUrl("/api/login"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -192,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("No hay sesión activa");
     }
 
-    const r = await fetch("/api/ejecutivos", {
+    const r = await fetch(mexicoApiUrl("/api/ejecutivos"), {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -213,7 +224,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("No hay sesión activa");
     }
 
-    const r = await fetch("/api/ejecutivo/clientes", {
+    const r = await fetch(mexicoApiUrl("/api/ejecutivo/clientes"), {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -235,7 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       throw new Error("No hay sesión activa");
     }
 
-    const r = await fetch("/api/admin/users", {
+    const r = await fetch(mexicoApiUrl("/api/admin/users"), {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
