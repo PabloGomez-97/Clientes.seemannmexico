@@ -118,6 +118,7 @@ const ACCION_BADGES: Record<string, { bg: string; text: string }> = {
   EJECUTIVO_CREADO: { bg: "#d1e7dd", text: "#0f5132" },
   EJECUTIVO_ACTUALIZADO: { bg: "#cff4fc", text: "#055160" },
   EJECUTIVO_ELIMINADO: { bg: "#f8d7da", text: "#842029" },
+  EJECUTIVO_CROSS_TENANT: { bg: "#e7e5ff", text: "#3b2f7a" },
 };
 
 const ACCION_LABELS: Record<string, string> = {
@@ -146,6 +147,7 @@ const ACCION_LABELS: Record<string, string> = {
   EJECUTIVO_CREADO: "Ejecutivo Creado",
   EJECUTIVO_ACTUALIZADO: "Ejecutivo Actualizado",
   EJECUTIVO_ELIMINADO: "Ejecutivo Eliminado",
+  EJECUTIVO_CROSS_TENANT: "Acceso Dual País",
 };
 
 // ============================================================================

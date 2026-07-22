@@ -35,7 +35,8 @@ export type AuditAction =
   // Gestión de ejecutivos
   | 'EJECUTIVO_CREADO'
   | 'EJECUTIVO_ACTUALIZADO'
-  | 'EJECUTIVO_ELIMINADO';
+  | 'EJECUTIVO_ELIMINADO'
+  | 'EJECUTIVO_CROSS_TENANT';
 
 export type AuditCategory =
   | 'COTIZACION'
