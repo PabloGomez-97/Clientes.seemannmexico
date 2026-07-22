@@ -133,6 +133,10 @@
     "navbar": {
       "openMenu": "Abrir menú",
       "closeMenu": "Cerrar menú",
+      "darkMode": "Modo oscuro",
+      "lightMode": "Modo claro",
+      "darkModeOn": "Activar modo oscuro",
+      "darkModeOff": "Desactivar modo oscuro",
       "notifications": {
         "newQuote": "Nueva cotización",
         "quoteCreated": "Cotización #1234 creada",
@@ -168,7 +172,9 @@
       "profile": {
         "assignedExecutive": "Tu Ejecutivo Asignado",
         "commercialExecutive": "Ejecutivo Comercial",
-        "logout": "Cerrar Sesión"
+        "logout": "Cerrar Sesión",
+        "settingsTitle": "Configuraciones",
+        "settingsDesc": "Administra correos predeterminados para tracking"
       },
       "search": {
         "placeholder": "Buscar cotizaciones, envíos, reportes...",
@@ -210,7 +216,11 @@
       "news": "Novedades",
       "novedades": "Novedades",
       "settings": "Configuración",
-      "help": "Ayuda"
+      "help": "Ayuda",
+      "navLabel": "Navegación principal",
+      "closeMenu": "Cerrar menú",
+      "expandMenu": "Expandir menú",
+      "collapseMenu": "Colapsar menú"
     },
     "userLayout": {
       "sessionError": "No se pudo completar la sesión",
@@ -640,7 +650,8 @@
     "altoMsg": "Una o más piezas superan los 259 cm de alto. Esta carga se considera oversize y requiere cotización especial."
   },
   "sidebar": {
-    "account": "Cuenta Activa"
+    "account": "Cuenta Activa",
+    "yourExecutive": "Tu ejecutivo:"
   },
   "novedades": {
     "title": "Novedades",

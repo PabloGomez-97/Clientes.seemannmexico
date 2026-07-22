@@ -4,12 +4,21 @@ import { Outlet, useLocation } from "react-router-dom";
 import Navbar from "./Navbar";
 import Sidebar from "./Sidebar";
 import Footer from "../components/Footer/Footer";
+import "./ClientShell.css";
 
-/** Teléfono y tablet: menú lateral como drawer */
-const MOBILE_BREAKPOINT = 1024;
+/** Teléfonos: menú lateral como drawer superpuesto */
+const MOBILE_BREAKPOINT = 768;
+/** Tablets: rail compacto persistente por defecto */
+const TABLET_BREAKPOINT = 1199;
+
+/** Clave propia del portal cliente (no compartida con admin) */
+const SIDEBAR_PREF_KEY = "client.sidebarCollapsed";
 
 const isMobileViewport = () =>
   typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT;
+
+const isTabletViewport = () =>
+  typeof window !== "undefined" && window.innerWidth <= TABLET_BREAKPOINT;
 
 function UserLayout() {
   const location = useLocation();
@@ -17,20 +26,23 @@ function UserLayout() {
   const [isMobile, setIsMobile] = useState(isMobileViewport);
   const [hasUserPref, setHasUserPref] = useState<boolean>(() => {
     try {
-      return localStorage.getItem("sidebarCollapsed") !== null;
+      return localStorage.getItem(SIDEBAR_PREF_KEY) !== null;
     } catch {
       return false;
     }
   });
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    // En teléfono el drawer siempre parte cerrado
+    if (isMobileViewport()) return true;
     try {
-      const stored = localStorage.getItem("sidebarCollapsed");
+      const stored = localStorage.getItem(SIDEBAR_PREF_KEY);
       if (stored !== null) return stored === "true";
     } catch {
       /* ignore */
     }
-    return isMobileViewport();
+    // Sin preferencia: rail en tablet, expandido en desktop
+    return isTabletViewport();
   });
 
   useLayoutEffect(() => {
@@ -45,7 +57,22 @@ function UserLayout() {
 
       setIsMobile((previousMobile) => {
         if (previousMobile !== mobile) {
-          if (!hasUserPref) setSidebarCollapsed(mobile);
+          if (mobile) {
+            // Al entrar a teléfono, el drawer parte cerrado
+            setSidebarCollapsed(true);
+          } else {
+            // Al salir de teléfono, respetar preferencia o default por viewport
+            let next = isTabletViewport();
+            if (hasUserPref) {
+              try {
+                const stored = localStorage.getItem(SIDEBAR_PREF_KEY);
+                if (stored !== null) next = stored === "true";
+              } catch {
+                /* ignore */
+              }
+            }
+            setSidebarCollapsed(next);
+          }
         }
 
         return mobile;
@@ -61,13 +88,16 @@ function UserLayout() {
   };
 
   const toggleSidebar = () => {
-    setHasUserPref(true);
     setSidebarCollapsed((previous) => {
       const next = !previous;
-      try {
-        localStorage.setItem("sidebarCollapsed", String(next));
-      } catch {
-        /* ignore */
+      // El estado del drawer en teléfono no se persiste
+      if (!isMobileViewport()) {
+        setHasUserPref(true);
+        try {
+          localStorage.setItem(SIDEBAR_PREF_KEY, String(next));
+        } catch {
+          /* ignore */
+        }
       }
       return next;
     });
@@ -87,7 +117,7 @@ function UserLayout() {
 
       <div
         className="flex-fill d-flex flex-column user-layout-frame"
-        style={{ overflow: "hidden" }}
+        style={{ overflow: "hidden", position: "relative" }}
       >
         <Navbar
           onLogout={handleLogout}

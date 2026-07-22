@@ -9,16 +9,18 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      // Con base /mx/, el fetch patch manda a /mx/api → API local (mismo puerto default 4000)
+      // Dual-dev con Chile: Chile API = :4000, México API = :4001
+      // (Chile vite ya proxea /mx/api → :4001)
       '/mx/api': {
-        target: 'http://localhost:4000',
+        target: 'http://localhost:4001',
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/mx/, ''),
       },
       '/api': {
-        target: 'http://localhost:4000',
+        target: 'http://localhost:4001',
         changeOrigin: true,
       },
     },
   },
 })
+

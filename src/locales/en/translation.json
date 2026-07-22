@@ -133,6 +133,10 @@
     "navbar": {
       "openMenu": "Open menu",
       "closeMenu": "Close menu",
+      "darkMode": "Dark mode",
+      "lightMode": "Light mode",
+      "darkModeOn": "Turn on dark mode",
+      "darkModeOff": "Turn off dark mode",
       "notifications": {
         "newQuote": "New quote",
         "quoteCreated": "Quote #1234 created",
@@ -168,7 +172,9 @@
       "profile": {
         "assignedExecutive": "Your Assigned Executive",
         "commercialExecutive": "Commercial Executive",
-        "logout": "Log Out"
+        "logout": "Log Out",
+        "settingsTitle": "Settings",
+        "settingsDesc": "Manage default tracking notification emails"
       },
       "search": {
         "placeholder": "Search quotes, shipments, reports...",
@@ -210,7 +216,11 @@
       "news": "News",
       "novedades": "News",
       "settings": "Settings",
-      "help": "Help"
+      "help": "Help",
+      "navLabel": "Main navigation",
+      "closeMenu": "Close menu",
+      "expandMenu": "Expand menu",
+      "collapseMenu": "Collapse menu"
     },
     "userLayout": {
       "sessionError": "Could not complete the session",
@@ -639,7 +649,8 @@
     "altoMsg": "One or more pieces exceed 259 cm in height. This cargo is considered oversize and requires a special quote."
   },
   "sidebar": {
-    "account": "Active Account"
+    "account": "Active Account",
+    "yourExecutive": "Your executive:"
   },
   "novedades": {
     "title": "News",

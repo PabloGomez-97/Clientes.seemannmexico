@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "hash-users": "ts-node --esm scripts/hash-users.ts",
-    "auth": "tsx watch server/index.ts",
+    "auth": "PORT=4001 tsx watch server/index.ts",
     "whatsapp:worker": "node -r dotenv/config ./node_modules/.bin/tsx whatsapp/worker.ts",
     "whatsapp:test": "node -r dotenv/config ./node_modules/.bin/tsx scripts/whatsapp-send-test.ts",
     "whatsapp:reset": "node -r dotenv/config ./node_modules/.bin/tsx scripts/whatsapp-reset-session.ts",

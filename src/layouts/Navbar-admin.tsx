@@ -1,14 +1,13 @@
-// src/layouts/Navbar-admin.tsx - AWS/Azure Minimalist Design (same as client)
+// src/layouts/Navbar-admin.tsx — Chrome Enterprise Dark (admin), idéntico a Chile
 import { useState, useEffect } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import { imgUrl } from "../config/images";
 import PortalNotificationBell from "../components/notifications/PortalNotificationBell";
-import SidebarToggleButton from "./SidebarToggleButton";
 
-// Design tokens - Enterprise Dark + Brand (same as client Navbar)
-const colors = {
+/* Paleta oscura para la campana de notificaciones (prop compartida) */
+const bellColors = {
   bg: "#232f3e",
   bgHover: "#2d3a4a",
   text: "#ffffff",
@@ -72,13 +71,19 @@ function NavbarAdmin({
   };
   const userImage = getUserImage(user?.nombreuser);
 
+  const currentLang = (i18n.resolvedLanguage || i18n.language || "es")
+    .toLowerCase()
+    .startsWith("es")
+    ? "es"
+    : "en";
+
   const handleLogout = () => {
     logout();
     if (onLogout) onLogout();
     setShowProfile(false);
   };
 
-  // Keyboard shortcut: Escape
+  // Escape cierra los dropdowns
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -90,7 +95,7 @@ function NavbarAdmin({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Close dropdowns on outside click
+  // Cierre al hacer click fuera
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -113,69 +118,55 @@ function NavbarAdmin({
 
   return (
     <nav
-      className="main-navbar-admin"
-      style={{
-        height: "70px",
-        minHeight: "70px",
-        maxHeight: "70px",
-        flexShrink: 0,
-        backgroundColor: colors.bg,
-        borderBottom: `1px solid ${colors.border}`,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: isMobile ? "space-between" : "flex-end",
-        padding: "0 20px",
-        gap: "12px",
-        position: "sticky",
-        top: 0,
-        zIndex: 100,
-        fontFamily:
-          '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-      }}
+      className={["cnav-root", isMobile ? "cnav-root--mobile" : ""]
+        .filter(Boolean)
+        .join(" ")}
     >
       {isMobile && (
-        <SidebarToggleButton
-          isCollapsed={isSidebarCollapsed}
-          onClick={toggleSidebar}
-          ariaLabel={isSidebarCollapsed ? "Abrir menú" : "Cerrar menú"}
-          title={isSidebarCollapsed ? "Abrir menú" : "Cerrar menú"}
-        />
-      )}
-
-      {/* Right Section - Actions */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-
-        {/* Dark Mode Toggle */}
         <button
           type="button"
+          className="cnav-burger"
+          onClick={toggleSidebar}
+          aria-label={
+            isSidebarCollapsed
+              ? t("home.navbar.openMenu")
+              : t("home.navbar.closeMenu")
+          }
+          title={
+            isSidebarCollapsed
+              ? t("home.navbar.openMenu")
+              : t("home.navbar.closeMenu")
+          }
+        >
+          <svg width="18" height="18" viewBox="0 0 16 16" fill="none" aria-hidden>
+            <path
+              d="M2.5 4h11M2.5 8h11M2.5 12h11"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+      )}
+
+      <div className="cnav-actions">
+        {/* Modo oscuro */}
+        <button
+          type="button"
+          className="cnav-iconbtn"
           onClick={() => setDarkMode((prev) => !prev)}
           aria-label={
-            darkMode ? "Desactivar modo oscuro" : "Activar modo oscuro"
+            darkMode
+              ? t("home.navbar.darkModeOff", { defaultValue: "Desactivar modo oscuro" })
+              : t("home.navbar.darkModeOn", { defaultValue: "Activar modo oscuro" })
           }
-          title={darkMode ? "Modo claro" : "Modo oscuro"}
-          style={{
-            width: "36px",
-            height: "36px",
-            borderRadius: "4px",
-            border: `1px solid ${colors.border}`,
-            backgroundColor: "transparent",
-            color: colors.text,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            cursor: "pointer",
-            transition: "all 0.15s ease",
-            flexShrink: 0,
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = colors.bgHover;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "transparent";
-          }}
+          title={
+            darkMode
+              ? t("home.navbar.lightMode", { defaultValue: "Modo claro" })
+              : t("home.navbar.darkMode", { defaultValue: "Modo oscuro" })
+          }
         >
           {darkMode ? (
-            // Sun icon
             <svg
               width="16"
               height="16"
@@ -185,6 +176,7 @@ function NavbarAdmin({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
+              aria-hidden
             >
               <circle cx="12" cy="12" r="5" />
               <line x1="12" y1="1" x2="12" y2="3" />
@@ -197,7 +189,6 @@ function NavbarAdmin({
               <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
             </svg>
           ) : (
-            // Moon icon
             <svg
               width="16"
               height="16"
@@ -207,48 +198,33 @@ function NavbarAdmin({
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
+              aria-hidden
             >
               <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
             </svg>
           )}
         </button>
 
-        {/* Portal Notifications Bell (ejecutivo + operaciones) */}
+        {/* Notificaciones (ejecutivo + operaciones) */}
         <PortalNotificationBell
           enabled={!!user?.roles?.ejecutivo || !!user?.roles?.operaciones}
-          navbarColors={colors}
+          navbarColors={bellColors}
         />
 
-        {/* Language Selector */}
+        {/* Idioma */}
         <div style={{ position: "relative" }}>
           <button
-            className="admin-language-button"
+            type="button"
+            className={[
+              "admin-language-button cnav-lang",
+              showLanguage ? "cnav-lang--open" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             onClick={() => setShowLanguage(!showLanguage)}
-            style={{
-              height: "36px",
-              padding: "0 12px",
-              borderRadius: "4px",
-              border: `1px solid ${colors.border}`,
-              backgroundColor: showLanguage ? colors.bgHover : "transparent",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              color: colors.text,
-              fontSize: "13px",
-              fontWeight: "500",
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
-            onMouseEnter={(e) => {
-              if (!showLanguage)
-                e.currentTarget.style.backgroundColor = colors.bgHover;
-            }}
-            onMouseLeave={(e) => {
-              if (!showLanguage)
-                e.currentTarget.style.backgroundColor = "transparent";
-            }}
+            aria-expanded={showLanguage}
           >
-            <span>{i18n.language === "es" ? "ES" : "EN"}</span>
+            <span>{currentLang.toUpperCase()}</span>
             <svg
               width="12"
               height="12"
@@ -258,6 +234,7 @@ function NavbarAdmin({
                 transform: showLanguage ? "rotate(180deg)" : "rotate(0deg)",
                 transition: "transform 0.15s ease",
               }}
+              aria-hidden
             >
               <path
                 fillRule="evenodd"
@@ -267,48 +244,23 @@ function NavbarAdmin({
           </button>
 
           {showLanguage && (
-            <div
-              className="admin-language-dropdown"
-              style={{
-                position: "absolute",
-                top: "calc(100% + 8px)",
-                right: 0,
-                width: "120px",
-                backgroundColor: "#ffffff",
-                borderRadius: "6px",
-                boxShadow: "0 4px 24px rgba(0, 0, 0, 0.15)",
-                border: "1px solid #e5e7eb",
-                overflow: "hidden",
-                zIndex: 1000,
-              }}
-            >
+            <div className="admin-language-dropdown cnav-dropdown cnav-dropdown--lang">
               {[
                 { code: "es", label: "Español" },
                 { code: "en", label: "English" },
               ].map((lang) => (
                 <button
                   key={lang.code}
+                  type="button"
+                  className={[
+                    "cnav-lang-option",
+                    currentLang === lang.code ? "cnav-lang-option--active" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                   onClick={() => {
                     i18n.changeLanguage(lang.code);
                     setShowLanguage(false);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    border: "none",
-                    backgroundColor: "transparent",
-                    textAlign: "left",
-                    color: "#374151",
-                    fontSize: "13px",
-                    fontWeight: "500",
-                    cursor: "pointer",
-                    transition: "background-color 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#f3f4f6";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "transparent";
                   }}
                 >
                   {lang.label}
@@ -318,52 +270,24 @@ function NavbarAdmin({
           )}
         </div>
 
-        {/* User Profile */}
+        {/* Perfil */}
         <div style={{ position: "relative" }}>
           <button
-            className="admin-profile-button"
+            type="button"
+            className={[
+              "admin-profile-button cnav-profile-trigger",
+              showProfile ? "cnav-profile-trigger--open" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             onClick={() => setShowProfile(!showProfile)}
-            style={{
-              height: "36px",
-              padding: "0 12px",
-              borderRadius: "4px",
-              border: `1px solid ${colors.border}`,
-              backgroundColor: showProfile ? colors.bgHover : "transparent",
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              cursor: "pointer",
-              transition: "background-color 0.15s ease",
-            }}
-            onMouseEnter={(e) => {
-              if (!showProfile)
-                e.currentTarget.style.backgroundColor = colors.bgHover;
-            }}
-            onMouseLeave={(e) => {
-              if (!showProfile)
-                e.currentTarget.style.backgroundColor = "transparent";
-            }}
+            aria-expanded={showProfile}
           >
-            <div
-              style={{
-                width: "28px",
-                height: "28px",
-                borderRadius: "50%",
-                backgroundColor: colors.accent,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#ffffff",
-                fontSize: "11px",
-                fontWeight: "700",
-                overflow: "hidden",
-              }}
-            >
+            <div className="cnav-avatar">
               {userImage ? (
                 <img
                   src={userImage}
                   alt={username}
-                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
                   }}
@@ -372,24 +296,17 @@ function NavbarAdmin({
                 initials
               )}
             </div>
-            <span
-              style={{
-                fontSize: "13px",
-                fontWeight: "500",
-                color: colors.text,
-              }}
-            >
-              {username}
-            </span>
+            <span className="cnav-username">{username}</span>
             <svg
               width="12"
               height="12"
-              fill={colors.textMuted}
+              fill="#8d99a8"
               viewBox="0 0 16 16"
               style={{
                 transition: "transform 0.15s ease",
                 transform: showProfile ? "rotate(180deg)" : "rotate(0deg)",
               }}
+              aria-hidden
             >
               <path
                 fillRule="evenodd"
@@ -398,129 +315,37 @@ function NavbarAdmin({
             </svg>
           </button>
 
-          {/* Profile Dropdown */}
           {showProfile && (
-            <div
-              className="admin-profile-dropdown"
-              style={{
-                position: "absolute",
-                top: "calc(100% + 8px)",
-                right: 0,
-                width: "320px",
-                backgroundColor: "#ffffff",
-                borderRadius: "6px",
-                boxShadow: "0 4px 24px rgba(0, 0, 0, 0.15)",
-                border: "1px solid #e5e7eb",
-                overflow: "hidden",
-                zIndex: 1000,
-                fontFamily:
-                  '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-              }}
-            >
-              {/* User info header */}
-              <div
-                style={{
-                  padding: "16px",
-                  borderBottom: "1px solid #e5e7eb",
-                  backgroundColor: "#f9fafb",
-                }}
-              >
-                <div
-                  style={{ display: "flex", alignItems: "center", gap: "12px" }}
-                >
-                  <div
-                    style={{
-                      width: "42px",
-                      height: "42px",
-                      borderRadius: "50%",
-                      backgroundColor: colors.accent,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: "#ffffff",
-                      fontSize: "16px",
-                      fontWeight: "700",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {userImage ? (
-                      <img
-                        src={userImage}
-                        alt={username}
-                        style={{
-                          width: "100%",
-                          height: "100%",
-                          objectFit: "cover",
-                        }}
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    ) : (
-                      initials
-                    )}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        fontSize: "14px",
-                        fontWeight: "600",
-                        color: "#1f2937",
-                        marginBottom: "2px",
+            <div className="admin-profile-dropdown cnav-dropdown cnav-dropdown--profile">
+              {/* Cabecera usuario */}
+              <div className="cnav-profile-head">
+                <div className="cnav-avatar">
+                  {userImage ? (
+                    <img
+                      src={userImage}
+                      alt={username}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
                       }}
-                    >
-                      {username}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: "12px",
-                        color: "#6b7280",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {email}
-                    </div>
-                  </div>
+                    />
+                  ) : (
+                    initials
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div className="cnav-profile-name">{username}</div>
+                  <div className="cnav-profile-email">{email}</div>
                 </div>
               </div>
 
-              {/* Logout button */}
-              <div style={{ padding: "12px 16px" }}>
+              {/* Cerrar sesión */}
+              <div className="cnav-logout-wrap">
                 <button
+                  type="button"
+                  className="cnav-logout"
                   onClick={handleLogout}
-                  style={{
-                    width: "100%",
-                    padding: "10px",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "4px",
-                    backgroundColor: "#ffffff",
-                    color: "#dc2626",
-                    fontSize: "13px",
-                    fontWeight: "500",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "8px",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "#fef2f2";
-                    e.currentTarget.style.borderColor = "#fecaca";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "#ffffff";
-                    e.currentTarget.style.borderColor = "#e5e7eb";
-                  }}
                 >
-                  <svg
-                    width="14"
-                    height="14"
-                    fill="currentColor"
-                    viewBox="0 0 16 16"
-                  >
+                  <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden>
                     <path
                       fillRule="evenodd"
                       d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"
@@ -537,48 +362,6 @@ function NavbarAdmin({
           )}
         </div>
       </div>
-
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-        @keyframes aiChatPulseAdmin {
-          0%, 100% { box-shadow: 0 0 10px rgba(162, 45, 125, 0.45), inset 0 1px 0 rgba(255,255,255,0.06); }
-          50%       { box-shadow: 0 0 18px rgba(162, 45, 125, 0.75), 0 0 0 3px rgba(162, 45, 125, 0.18), inset 0 1px 0 rgba(255,255,255,0.06); }
-        }
-
-        .ai-chat-glow-btn-admin {
-          animation: aiChatPulseAdmin 2.8s ease-in-out infinite;
-        }
-
-        .ai-chat-glow-btn-admin:hover {
-          animation: none;
-        }
-
-        .main-navbar-admin {
-          box-shadow: 0 1px 0 #e4e7ec;
-        }
-        
-        /* Responsive: Tablets */
-        @media (max-width: 1024px) {
-          .main-navbar-admin {
-            box-shadow: 0 1px 0 #e4e7ec;
-            height: 60px !important;
-            min-height: 60px !important;
-            max-height: 60px !important;
-            padding: 0 16px !important;
-          }
-        }
-        
-        /* Responsive: Mobile */
-        @media (max-width: 768px) {
-          .main-navbar-admin {
-            height: 65px !important;
-            min-height: 65px !important;
-            max-height: 65px !important;
-            padding: 0 12px !important;
-          }
-        }
-      `}</style>
     </nav>
   );
 }

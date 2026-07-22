@@ -1,6 +1,10 @@
 /* src/styles.css - Global CSS Variables */
 
 :root {
+  --portal-font:
+    "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+
   --primary-color: #ff6200;
   --secondary-color: #1F2937;
   --primary-light: #000000;
@@ -10,7 +14,12 @@
 }
 /* var(--primary-color) <- con ese lo colocamos */
 
-/* font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; */
+html,
+body,
+#root {
+  font-family: var(--portal-font);
+  -webkit-font-smoothing: antialiased;
+}
 
 /* ===== Route Card Toggle (Paso 1 - Quoters) ===== */
 .route-card-toggle {

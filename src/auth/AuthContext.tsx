@@ -138,6 +138,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(async (r) => {
         if (r.status === 409) {
           const d = await r.json().catch(() => ({}));
+          if (d.tenant === "mx" || d.redirectTo === "/mx") {
+            console.error(
+              "[auth] /api/me 409 tenant=mx: el SPA está pegándole a la API de Chile. En local usa API MX en :4001 (`npm run auth`) y reinicia Vite.",
+            );
+          }
           clearAuthStorage();
           setToken(null);
           setUser(null);
