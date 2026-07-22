@@ -23,7 +23,12 @@
     }
   ],
   "rewrites": [
+    { "source": "/mx/api/:path*", "destination": "/api" },
     { "source": "/api/:path*", "destination": "/api" },
+    { "source": "/mx/assets/:path*", "destination": "/assets/:path*" },
+    { "source": "/mx", "destination": "/index.html" },
+    { "source": "/mx/(.*)", "destination": "/index.html" },
+    { "source": "/", "destination": "/mx" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

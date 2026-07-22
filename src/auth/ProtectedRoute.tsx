@@ -1,11 +1,20 @@
 // src/components/ProtectedRoute.tsx
 import { Navigate } from "react-router-dom";
+import { useEffect } from "react";
 import { useAuth } from "./AuthContext";
+import { getCentralLoginHref } from "./portalLogin";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
   requireProveedor?: boolean;
+}
+
+function RedirectToLogin() {
+  useEffect(() => {
+    window.location.assign(getCentralLoginHref("client"));
+  }, []);
+  return null;
 }
 
 export default function ProtectedRoute({
@@ -33,38 +42,30 @@ export default function ProtectedRoute({
     );
   }
 
-  // Si no hay token, redirigir al login
   if (!token || !user) {
-    return <Navigate to="/login" replace />;
+    return <RedirectToLogin />;
   }
 
   const isEjecutivo = user.username === "Ejecutivo";
   const isProveedor = isEjecutivo && user.roles?.proveedor === true;
   const isAdmin = isEjecutivo && !isProveedor;
 
-  // Ruta de proveedor
   if (requireProveedor) {
     if (!isProveedor) {
-      // Si es ejecutivo/admin, ir a admin
       if (isAdmin) return <Navigate to="/admin/home" replace />;
-      // Si es cliente, ir a home
       return <Navigate to="/" replace />;
     }
     return <>{children}</>;
   }
 
-  // Ruta de admin/ejecutivo
   if (requireAdmin) {
     if (!isAdmin) {
-      // Si es proveedor, ir a portal proveedor
       if (isProveedor) return <Navigate to="/proveedor/home" replace />;
-      // Si es cliente, ir a home
       return <Navigate to="/" replace />;
     }
     return <>{children}</>;
   }
 
-  // Ruta de cliente (usuario regular)
   if (isProveedor) {
     return <Navigate to="/proveedor/home" replace />;
   }

@@ -1,4 +1,5 @@
 // src/App.tsx
+import { useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { SpeedInsights } from "@vercel/speed-insights/react";
 import { Analytics } from "@vercel/analytics/react";
@@ -7,6 +8,10 @@ import Login from "./auth/Login";
 import LoginAdmin from "./auth/LoginAdmin";
 import LoginProveedor from "./auth/LoginProveedor";
 import ProtectedRoute from "./auth/ProtectedRoute";
+import {
+  getCentralLoginHref,
+  isUnifiedPortalHost,
+} from "./auth/portalLogin";
 
 // Layouts
 import AdminLayout from "./layouts/AdminLayout";
@@ -84,6 +89,30 @@ function HomeSwitch() {
   return <HomeEjecutivo />;
 }
 
+function CentralLoginRedirect({
+  kind = "client",
+}: {
+  kind?: "client" | "admin" | "proveedor";
+}) {
+  useEffect(() => {
+    window.location.assign(getCentralLoginHref(kind));
+  }, [kind]);
+  return null;
+}
+
+function LoginOrRedirect({
+  kind,
+  children,
+}: {
+  kind: "client" | "admin" | "proveedor";
+  children: React.ReactNode;
+}) {
+  if (isUnifiedPortalHost()) {
+    return <CentralLoginRedirect kind={kind} />;
+  }
+  return <>{children}</>;
+}
+
 function App() {
   const { user, loading } = useAuth();
 
@@ -105,7 +134,9 @@ function App() {
             loading ? null : user ? (
               <Navigate to={getHomeRoute()} replace />
             ) : (
-              <Login />
+              <LoginOrRedirect kind="client">
+                <Login />
+              </LoginOrRedirect>
             )
           }
         />
@@ -116,7 +147,9 @@ function App() {
             loading ? null : user ? (
               <Navigate to={getHomeRoute()} replace />
             ) : (
-              <LoginAdmin />
+              <LoginOrRedirect kind="admin">
+                <LoginAdmin />
+              </LoginOrRedirect>
             )
           }
         />
@@ -127,7 +160,9 @@ function App() {
             loading ? null : user ? (
               <Navigate to={getHomeRoute()} replace />
             ) : (
-              <LoginProveedor />
+              <LoginOrRedirect kind="proveedor">
+                <LoginProveedor />
+              </LoginOrRedirect>
             )
           }
         />

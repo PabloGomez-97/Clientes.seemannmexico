@@ -5,6 +5,9 @@ import mongoose from 'mongoose';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import 'dotenv/config';
+import {
+  emailExistsInRemoteDb,
+} from '../api/services/crossTenantDb.ts';
 import { fetchAllExpiring, filterMaxWindow } from '../api/services/pricingExpiryService.ts';
 import {
   buildAirExpiryAlertHTML, buildAirExpiryAlertSubject,
@@ -1922,6 +1925,12 @@ const auth: express.RequestHandler = (req, res, next) => {
   try {
     console.log('Token length:', token.length);
     const decoded = verifyToken(token);
+    if ((decoded as any).purpose === 'tenant_selection') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+    if ((decoded as any).tenant === 'cl') {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
     console.log('Token decoded, user sub:', decoded.sub);
     (req as any).user = decoded;
     next();
@@ -1997,7 +2006,7 @@ app.post('/api/login', async (req, res) => {
       });
     }
 
-    const token = signToken({ sub: user.email, username: user.username });
+    const token = signToken({ sub: user.email, username: user.username, tenant: 'mx' });
 
     // Login exitoso: reiniciar contador de fallos
     await User.updateOne(
@@ -2719,6 +2728,19 @@ app.post('/api/admin/create-user', auth, async (req, res) => {
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ error: 'El email ya está registrado' });
+    }
+
+    const remoteCheck = await emailExistsInRemoteDb(normalizedEmail);
+    if (remoteCheck.exists) {
+      return res.status(400).json({
+        error: 'El email ya está registrado en Seemann Chile',
+      });
+    }
+    if (!remoteCheck.checked) {
+      console.warn(
+        '[admin] Unicidad cross-tenant no verificada (México sigue):',
+        remoteCheck.error,
+      );
     }
 
     // Use provided password (executive accounts) or server-side default for clients

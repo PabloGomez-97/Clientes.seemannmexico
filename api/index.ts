@@ -44,6 +44,10 @@ import {
   getQuotePdfResendEmailSubject,
 } from './emails/quotePdfResendEmailTemplate.js';
 import { normalizeQuoteResendEmails } from './utils/quoteResendHelpers.js';
+import {
+  emailExistsInRemoteDb,
+  type TenantId,
+} from './services/crossTenantDb.js';
 
 /** =========================
  *  Entorno + JWT
@@ -62,6 +66,8 @@ const MONGODB_URI = requireEnv('MONGODB_URI');
 interface AuthPayload extends jwt.JwtPayload {
   sub: string;
   username: string;
+  tenant?: TenantId;
+  purpose?: string;
 }
 
 function signToken(payload: AuthPayload | object): string {
@@ -1976,8 +1982,18 @@ function requireAuth(req: VercelRequest): AuthPayload {
   const token = extractBearerToken(req);
   if (!token) throw new Error('No auth token');
   try {
-    return verifyToken(token);
-  } catch {
+    const payload = verifyToken(token);
+    if (payload.purpose === 'tenant_selection') {
+      throw new Error('Invalid token');
+    }
+    // Tokens de Chile no deben usarse contra la API México.
+    // Tokens legacy sin tenant se aceptan como México (mismo portal).
+    if (payload.tenant === 'cl') {
+      throw new Error('Invalid token');
+    }
+    return payload;
+  } catch (e) {
+    if (e instanceof Error && e.message === 'Invalid token') throw e;
     throw new Error('Invalid token');
   }
 }
@@ -2004,7 +2020,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await connectDB();
 
     const { url, method } = req;
-    const path = url?.split('?')[0] || '';
+    let path = url?.split('?')[0] || '';
+    // Soporte para requests bajo /mx/api/* (dominio unificado o rewrite)
+    if (path.startsWith('/mx/api')) {
+      path = path.replace(/^\/mx/, '');
+    }
 
     // ============================================================
     // RUTAS: COTIZACIONES MÉXICO (R2 + Mongo índice/contador)
@@ -2497,7 +2517,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
       }
 
-      const token = signToken({ sub: user.email, username: user.username });
+      const token = signToken({ sub: user.email, username: user.username, tenant: 'mx' });
 
       // Login exitoso: reiniciar contador de fallos
       await User.updateOne(
@@ -2532,6 +2552,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return res.json({
         token,
+        tenant: 'mx',
+        redirectTo: '/mx/',
         user: { 
           email: user.email, 
           username: user.username,
@@ -2591,6 +2613,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       try {
         const decoded = verifyToken(token);
+
+        if (decoded.purpose === 'tenant_selection') {
+          return res.status(401).json({ error: 'Token de selección inválido' });
+        }
+
+        if (decoded.tenant === 'cl') {
+          return res.status(409).json({
+            error: 'Esta sesión pertenece a Seemann Chile',
+            redirectTo: '/',
+            tenant: 'cl',
+          });
+        }
+
         const user = await User.findOne({ email: decoded.sub }).populate('ejecutivoId');
         
         if (!user) {
@@ -2635,6 +2670,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               telefono: ejecutivo.telefono
             } : null,
             roles,
+            tenant: 'mx',
           }
         });
       } catch {
@@ -3229,6 +3265,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const existingUser = await User.findOne({ email: normalizedEmail });
         if (existingUser) {
           return res.status(400).json({ error: 'El email ya está registrado' });
+        }
+
+        const remoteCheck = await emailExistsInRemoteDb(normalizedEmail);
+        if (remoteCheck.exists) {
+          return res.status(400).json({
+            error: 'El email ya está registrado en Seemann Chile',
+          });
+        }
+        if (!remoteCheck.checked) {
+          console.warn(
+            '[admin] Unicidad cross-tenant no verificada (México sigue):',
+            remoteCheck.error,
+          );
         }
 
         // Use provided password (executive accounts) or server-side default for clients

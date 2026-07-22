@@ -5,6 +5,7 @@ import {
   useState,
   useCallback,
 } from "react";
+import { getCentralLoginHref } from "./portalLogin";
 
 type Ejecutivo = {
   id: string;
@@ -91,8 +92,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setLoading(true);
     fetch("/api/me", { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(async (r) => {
+        if (r.status === 409) {
+          const d = await r.json().catch(() => ({}));
+          if (d.redirectTo) {
+            window.location.assign(d.redirectTo);
+            return null;
+          }
+        }
+        if (!r.ok) return Promise.reject();
+        return r.json();
+      })
       .then((d) => {
+        if (!d) return;
         const usernames =
           d.user.usernames && d.user.usernames.length > 0
             ? d.user.usernames
@@ -117,6 +129,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(null);
         localStorage.removeItem("auth_token");
         localStorage.removeItem("active_username");
+        localStorage.removeItem("auth_tenant");
       })
       .finally(() => {
         setLoading(false);
@@ -171,6 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setToken(null);
     setActiveUsernameState("");
     localStorage.clear();
+    window.location.assign(getCentralLoginHref("client"));
   };
 
   const getEjecutivos = async (): Promise<Ejecutivo[]> => {
