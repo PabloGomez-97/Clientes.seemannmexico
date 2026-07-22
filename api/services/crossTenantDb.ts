@@ -63,6 +63,7 @@ const RemoteEjecutivoSchema = new mongoose.Schema(
     email: String,
     nombre: String,
     telefono: String,
+    activo: { type: Boolean, default: true },
     roles: {
       administrador: Boolean,
       pricing: Boolean,
@@ -213,22 +214,33 @@ export async function emailExistsInRemoteDb(email: string): Promise<{
   }
 }
 
-export async function findUserInRemoteDb(
-  email: string,
-): Promise<{
+export type RemoteLookupResult = {
   user: RemoteUserLean | null;
   ejecutivo: RemoteEjecutivoLean | null;
-}> {
+  /** true si la URI remota está configurada pero la consulta falló */
+  remoteUnavailable: boolean;
+};
+
+export async function findUserInRemoteDb(
+  email: string,
+): Promise<RemoteLookupResult> {
+  if (!hasRemoteTenantDb()) {
+    return { user: null, ejecutivo: null, remoteUnavailable: false };
+  }
+
   try {
     const conn = await getRemoteConnection();
-    if (!conn) return { user: null, ejecutivo: null };
+    if (!conn) {
+      console.error('[crossTenant] findUserInRemoteDb: URI configurada pero sin conexión');
+      return { user: null, ejecutivo: null, remoteUnavailable: true };
+    }
 
     const { User, Ejecutivo } = getRemoteModels(conn);
     const user = (await User.findOne({
       email: email.toLowerCase().trim(),
     }).lean()) as RemoteUserLean | null;
 
-    if (!user) return { user: null, ejecutivo: null };
+    if (!user) return { user: null, ejecutivo: null, remoteUnavailable: false };
 
     let ejecutivo: RemoteEjecutivoLean | null = null;
     if (user.ejecutivoId) {
@@ -240,11 +252,11 @@ export async function findUserInRemoteDb(
       }).lean()) as RemoteEjecutivoLean | null;
     }
 
-    return { user, ejecutivo };
+    return { user, ejecutivo, remoteUnavailable: false };
   } catch (e) {
-    // Nunca tumbar el login local si la DB remota falla
-    console.error('[crossTenant] findUserInRemoteDb error (ignored):', e);
-    return { user: null, ejecutivo: null };
+    // No tumbar el login local; el caller decide si devolver 503 a usuarios solo-remotos.
+    console.error('[crossTenant] findUserInRemoteDb error:', e);
+    return { user: null, ejecutivo: null, remoteUnavailable: true };
   }
 }
 
@@ -262,5 +274,210 @@ export async function updateRemoteLoginCounters(
     );
   } catch (e) {
     console.error('[crossTenant] updateRemoteLoginCounters error (ignored):', e);
+  }
+}
+
+export function getLocalTenantId(): TenantId {
+  const portal = String(process.env.PORTAL_TENANT || '')
+    .toLowerCase()
+    .trim();
+  return portal === 'mx' ? 'mx' : 'cl';
+}
+
+export function getRemoteTenantId(): TenantId {
+  return getLocalTenantId() === 'cl' ? 'mx' : 'cl';
+}
+
+export type CrossTenantAccessStatus = {
+  configured: boolean;
+  remoteUnavailable: boolean;
+  remoteTenant: TenantId;
+  remoteLabel: string;
+  exists: boolean;
+  isEjecutivo: boolean;
+};
+
+/** Estado de la cuenta espejo en el otro país (mismo email). */
+export async function getRemoteAccessStatus(
+  email: string,
+): Promise<CrossTenantAccessStatus> {
+  const remoteTenant = getRemoteTenantId();
+  const base: CrossTenantAccessStatus = {
+    configured: hasRemoteTenantDb(),
+    remoteUnavailable: false,
+    remoteTenant,
+    remoteLabel: TENANT_META[remoteTenant].label,
+    exists: false,
+    isEjecutivo: false,
+  };
+
+  if (!base.configured) return base;
+
+  try {
+    const conn = await getRemoteConnection();
+    if (!conn) {
+      return { ...base, remoteUnavailable: true };
+    }
+    const { User } = getRemoteModels(conn);
+    const user = (await User.findOne({
+      email: email.toLowerCase().trim(),
+    })
+      .select('username')
+      .lean()) as { username?: string } | null;
+
+    if (!user) return base;
+    return {
+      ...base,
+      exists: true,
+      isEjecutivo: user.username === 'Ejecutivo',
+    };
+  } catch (e) {
+    console.error('[crossTenant] getRemoteAccessStatus error:', e);
+    return { ...base, remoteUnavailable: true };
+  }
+}
+
+export type ProvisionRemoteEjecutivoInput = {
+  email: string;
+  nombreuser: string;
+  telefono: string;
+  roles: {
+    administrador?: boolean;
+    pricing?: boolean;
+    ejecutivo?: boolean;
+    proveedor?: boolean;
+    operaciones?: boolean;
+  };
+  passwordHash: string;
+};
+
+/**
+ * Crea (o confirma) el ejecutivo espejo en la DB remota con el mismo email
+ * y passwordHash. Así el login unificado ofrece selector de país.
+ */
+export async function provisionRemoteEjecutivo(
+  input: ProvisionRemoteEjecutivoInput,
+): Promise<
+  | { ok: true; created: boolean; alreadyExists: boolean }
+  | { ok: false; error: string; code: string }
+> {
+  if (!hasRemoteTenantDb()) {
+    return {
+      ok: false,
+      error: 'La conexión al otro país no está configurada',
+      code: 'REMOTE_NOT_CONFIGURED',
+    };
+  }
+
+  const email = input.email.toLowerCase().trim();
+  if (!input.passwordHash) {
+    return {
+      ok: false,
+      error: 'La cuenta local no tiene contraseña configurada',
+      code: 'NO_PASSWORD',
+    };
+  }
+
+  try {
+    const conn = await getRemoteConnection();
+    if (!conn) {
+      return {
+        ok: false,
+        error: 'No se pudo conectar a la base del otro país',
+        code: 'REMOTE_UNAVAILABLE',
+      };
+    }
+
+    const { User, Ejecutivo } = getRemoteModels(conn);
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      if (existingUser.username === 'Ejecutivo') {
+        // Asegurar hash alineado para que el selector de país funcione
+        if (existingUser.passwordHash !== input.passwordHash) {
+          existingUser.passwordHash = input.passwordHash;
+          await existingUser.save();
+        }
+        return { ok: true, created: false, alreadyExists: true };
+      }
+      return {
+        ok: false,
+        error: `Ese email ya existe en ${TENANT_META[getRemoteTenantId()].label} como cuenta de cliente`,
+        code: 'REMOTE_IS_CLIENT',
+      };
+    }
+
+    const roles = {
+      administrador: Boolean(input.roles.administrador),
+      pricing: Boolean(input.roles.pricing),
+      ejecutivo: Boolean(input.roles.ejecutivo),
+      proveedor: Boolean(input.roles.proveedor),
+      operaciones: Boolean(input.roles.operaciones),
+    };
+    if (roles.administrador) {
+      roles.pricing = false;
+      roles.ejecutivo = false;
+      roles.proveedor = false;
+      roles.operaciones = false;
+    } else if (
+      !roles.pricing &&
+      !roles.ejecutivo &&
+      !roles.proveedor &&
+      !roles.operaciones
+    ) {
+      roles.ejecutivo = true;
+    }
+
+    let ej = await Ejecutivo.findOne({ email });
+    if (!ej) {
+      ej = await Ejecutivo.create({
+        nombre: input.nombreuser.trim(),
+        email,
+        telefono: String(input.telefono || '').trim() || '—',
+        activo: true,
+        roles,
+      });
+    }
+
+    await User.create({
+      email,
+      username: 'Ejecutivo',
+      usernames: ['Ejecutivo'],
+      nombreuser: input.nombreuser.trim(),
+      passwordHash: input.passwordHash,
+    });
+
+    console.log(
+      '[crossTenant] provisioned ejecutivo in %s: %s',
+      getRemoteTenantId(),
+      email,
+    );
+    return { ok: true, created: true, alreadyExists: false };
+  } catch (e) {
+    console.error('[crossTenant] provisionRemoteEjecutivo error:', e);
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : 'Error al crear cuenta remota',
+      code: 'PROVISION_FAILED',
+    };
+  }
+}
+
+/** Sincroniza passwordHash del espejo (si existe como Ejecutivo). */
+export async function syncRemoteEjecutivoPassword(
+  email: string,
+  passwordHash: string,
+): Promise<boolean> {
+  try {
+    const conn = await getRemoteConnection();
+    if (!conn) return false;
+    const { User } = getRemoteModels(conn);
+    const result = await User.updateOne(
+      { email: email.toLowerCase().trim(), username: 'Ejecutivo' },
+      { $set: { passwordHash } },
+    );
+    return (result.modifiedCount || 0) > 0 || (result.matchedCount || 0) > 0;
+  } catch (e) {
+    console.error('[crossTenant] syncRemoteEjecutivoPassword error:', e);
+    return false;
   }
 }

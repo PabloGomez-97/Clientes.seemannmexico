@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../../../auth/AuthContext";
 import { useAuditLog } from "../../../hooks/useAuditLog";
 import { validateRoles, getRoleLabels } from "../../../config/roleRoutes";
+import { mexicoApiUrl } from "../../../auth/mexicoApiUrl";
 import * as XLSX from "xlsx";
 
 interface Ejecutivo {
@@ -164,6 +165,16 @@ function UsersManagement() {
     proveedor: false,
     operaciones: false,
   });
+  const [crossTenant, setCrossTenant] = useState<{
+    configured: boolean;
+    remoteUnavailable: boolean;
+    remoteTenant: string;
+    remoteLabel: string;
+    exists: boolean;
+    isEjecutivo: boolean;
+  } | null>(null);
+  const [crossTenantLoading, setCrossTenantLoading] = useState(false);
+  const [crossTenantBusy, setCrossTenantBusy] = useState(false);
 
   // Búsqueda y paginación
   const [searchQuery, setSearchQuery] = useState("");
@@ -308,6 +319,7 @@ function UsersManagement() {
     setAccountType("cliente");
     setNewAccountInfo(null);
     setTelefono("");
+    setCrossTenant(null);
     setEditRoles({
       administrador: false,
       pricing: false,
@@ -315,6 +327,69 @@ function UsersManagement() {
       proveedor: false,
       operaciones: false,
     });
+  };
+
+  const loadCrossTenantAccess = async (ejEmail: string) => {
+    if (!token || !ejEmail) return;
+    setCrossTenantLoading(true);
+    try {
+      const response = await fetch(
+        mexicoApiUrl(
+          `/api/admin/cross-tenant-access?email=${encodeURIComponent(ejEmail)}`,
+        ),
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await response.json();
+      if (response.ok) {
+        setCrossTenant(data);
+      } else {
+        setCrossTenant(null);
+      }
+    } catch {
+      setCrossTenant(null);
+    } finally {
+      setCrossTenantLoading(false);
+    }
+  };
+
+  const handleProvisionCrossTenant = async () => {
+    if (!token || !email) return;
+    setCrossTenantBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const response = await fetch(
+        mexicoApiUrl("/api/admin/provision-cross-tenant"),
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email }),
+        },
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "No se pudo habilitar el acceso");
+      }
+      setSuccess(data.message || "Acceso dual habilitado");
+      await loadCrossTenantAccess(email);
+      registrarEvento({
+        accion: "EJECUTIVO_CROSS_TENANT",
+        categoria: "GESTION_EJECUTIVOS",
+        descripcion: `Acceso dual habilitado para ${email} → ${data.remoteLabel || "otro país"}`,
+        detalles: {
+          email,
+          remoteTenant: data.remoteTenant,
+          created: data.created,
+        },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido");
+    } finally {
+      setCrossTenantBusy(false);
+    }
   };
 
   const handleEditUser = (user: User) => {
@@ -349,8 +424,10 @@ function UsersManagement() {
           operaciones: false,
         });
       }
+      void loadCrossTenantAccess(user.email);
     } else {
       setIsEditingEjecutivo(false);
+      setCrossTenant(null);
     }
 
     setShowForm(true);
@@ -1839,6 +1916,107 @@ function UsersManagement() {
                     >
                       Solo completa si deseas cambiar la contraseña
                     </p>
+                  </div>
+                )}
+
+                {isEditingEjecutivo && editingUserId && (
+                  <div
+                    style={{
+                      marginBottom: "16px",
+                      padding: "14px 16px",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      background: "#f9fafb",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#111827",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Acceso a {crossTenant?.remoteLabel || "Seemann Chile"}
+                    </div>
+                    <p
+                      style={{
+                        fontSize: "12px",
+                        color: "#6b7280",
+                        margin: "0 0 12px",
+                        lineHeight: 1.45,
+                      }}
+                    >
+                      Crea la misma cuenta de ejecutivo en el otro país (mismo
+                      email y contraseña). Al iniciar sesión podrá elegir Chile
+                      o México. No aplica a clientes.
+                    </p>
+                    {crossTenantLoading ? (
+                      <span style={{ fontSize: 13, color: "#6b7280" }}>
+                        Consultando acceso…
+                      </span>
+                    ) : crossTenant?.exists && crossTenant.isEjecutivo ? (
+                      <span
+                        style={{
+                          display: "inline-block",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: "#166534",
+                          background: "#dcfce7",
+                          padding: "6px 10px",
+                          borderRadius: 6,
+                        }}
+                      >
+                        Ya tiene acceso a {crossTenant.remoteLabel}
+                      </span>
+                    ) : crossTenant?.exists && !crossTenant.isEjecutivo ? (
+                      <span style={{ fontSize: 13, color: "#b45309" }}>
+                        Ese email ya existe en {crossTenant.remoteLabel} como
+                        cliente; no se puede duplicar como ejecutivo.
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleProvisionCrossTenant}
+                        disabled={
+                          crossTenantBusy ||
+                          !crossTenant?.configured ||
+                          crossTenant?.remoteUnavailable
+                        }
+                        style={{
+                          background: "#ff6200",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 6,
+                          padding: "8px 14px",
+                          fontSize: 13,
+                          fontWeight: 600,
+                          cursor:
+                            crossTenantBusy || !crossTenant?.configured
+                              ? "not-allowed"
+                              : "pointer",
+                          opacity:
+                            crossTenantBusy || !crossTenant?.configured
+                              ? 0.6
+                              : 1,
+                        }}
+                      >
+                        {crossTenantBusy
+                          ? "Creando…"
+                          : `Crear cuenta en ${crossTenant?.remoteLabel || "Chile"}`}
+                      </button>
+                    )}
+                    {crossTenant && !crossTenant.configured && (
+                      <p
+                        style={{
+                          fontSize: 12,
+                          color: "#b91c1c",
+                          margin: "8px 0 0",
+                        }}
+                      >
+                        Falta configurar la URI remota en Vercel.
+                      </p>
+                    )}
                   </div>
                 )}
 

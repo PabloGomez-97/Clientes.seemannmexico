@@ -46,6 +46,11 @@ import {
 import { normalizeQuoteResendEmails } from './utils/quoteResendHelpers.js';
 import {
   emailExistsInRemoteDb,
+  getRemoteAccessStatus,
+  getRemoteTenantId,
+  provisionRemoteEjecutivo,
+  syncRemoteEjecutivoPassword,
+  TENANT_META,
   type TenantId,
 } from './services/crossTenantDb.js';
 
@@ -3248,6 +3253,109 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // RUTAS DE ADMINISTRACIÓN DE USUARIOS
     // ============================================================
 
+    // GET /api/admin/cross-tenant-access?email=
+    if (path === '/api/admin/cross-tenant-access' && method === 'GET') {
+      try {
+        const currentUser = requireAuth(req);
+        if (currentUser.username !== 'Ejecutivo') {
+          return res.status(403).json({ error: 'No tienes permisos' });
+        }
+        const email = String(req.query?.email || '')
+          .toLowerCase()
+          .trim();
+        if (!email) {
+          return res.status(400).json({ error: 'Email requerido' });
+        }
+        const status = await getRemoteAccessStatus(email);
+        return res.json({ success: true, ...status });
+      } catch (e: any) {
+        if (e?.message === 'No auth token' || e?.message === 'Invalid token') {
+          return res.status(401).json({ error: e.message });
+        }
+        console.error('[admin] cross-tenant-access:', e);
+        return res.status(500).json({ error: 'Error consultando acceso cross-tenant' });
+      }
+    }
+
+    // POST /api/admin/provision-cross-tenant
+    if (path === '/api/admin/provision-cross-tenant' && method === 'POST') {
+      try {
+        const currentUser = requireAuth(req);
+        if (currentUser.username !== 'Ejecutivo') {
+          return res.status(403).json({ error: 'No tienes permisos' });
+        }
+
+        const { email: rawEmail } = (req.body as any) || {};
+        const email = String(rawEmail || '')
+          .toLowerCase()
+          .trim();
+        if (!email) {
+          return res.status(400).json({ error: 'Email requerido' });
+        }
+
+        const localUser = await User.findOne({ email });
+        if (!localUser || localUser.username !== 'Ejecutivo') {
+          return res.status(400).json({
+            error: 'Solo se puede habilitar acceso dual para ejecutivos existentes',
+          });
+        }
+        if (!localUser.passwordHash) {
+          return res.status(400).json({
+            error: 'El ejecutivo no tiene contraseña configurada',
+          });
+        }
+
+        const ejDoc =
+          (localUser.ejecutivoId
+            ? await Ejecutivo.findById(localUser.ejecutivoId)
+            : null) || (await Ejecutivo.findOne({ email }));
+
+        const result = await provisionRemoteEjecutivo({
+          email,
+          nombreuser: localUser.nombreuser || ejDoc?.nombre || email,
+          telefono: ejDoc?.telefono || '',
+          roles: ejDoc?.roles || {
+            administrador: false,
+            pricing: false,
+            ejecutivo: true,
+            proveedor: false,
+            operaciones: false,
+          },
+          passwordHash: localUser.passwordHash,
+        });
+
+        if (!result.ok) {
+          const status =
+            result.code === 'REMOTE_NOT_CONFIGURED' ||
+            result.code === 'REMOTE_UNAVAILABLE'
+              ? 503
+              : 400;
+          return res.status(status).json({
+            error: result.error,
+            code: result.code,
+          });
+        }
+
+        const remoteTenant = getRemoteTenantId();
+        return res.json({
+          success: true,
+          created: result.created,
+          alreadyExists: result.alreadyExists,
+          remoteTenant,
+          remoteLabel: TENANT_META[remoteTenant].label,
+          message: result.alreadyExists
+            ? `Ya tenía acceso a ${TENANT_META[remoteTenant].label}`
+            : `Cuenta creada en ${TENANT_META[remoteTenant].label}. Al iniciar sesión podrá elegir el país.`,
+        });
+      } catch (e: any) {
+        if (e?.message === 'No auth token' || e?.message === 'Invalid token') {
+          return res.status(401).json({ error: e.message });
+        }
+        console.error('[admin] provision-cross-tenant:', e);
+        return res.status(500).json({ error: 'Error al provisionar acceso cross-tenant' });
+      }
+    }
+
     // POST /api/admin/create-user
     if (path === '/api/admin/create-user' && method === 'POST') {
       try {
@@ -3405,6 +3513,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
           if (password) {
             userToUpdate.passwordHash = bcrypt.hashSync(String(password), 12);
+            void syncRemoteEjecutivoPassword(
+              userToUpdate.email,
+              userToUpdate.passwordHash,
+            );
           }
 
           // Actualizar roles en el documento Ejecutivo vinculado
